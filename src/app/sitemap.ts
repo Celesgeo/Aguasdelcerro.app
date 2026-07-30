@@ -1,8 +1,8 @@
 import { MetadataRoute } from 'next';
-import { SITE } from '@/lib/constants';
+import { getSiteUrl } from '@/lib/site-url';
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = 'https://aguasdelcerro.com';
+  const base = getSiteUrl();
   const pages = [
     '',
     '/experiencias',

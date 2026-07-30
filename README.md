@@ -64,22 +64,55 @@ Configurá en Railway → Variables (nunca las subas al repo):
 - `ADMIN_PASSWORD` (mín. 10 caracteres, fuerte)
 - `ADMIN_SESSION_SECRET` (mín. 32 caracteres aleatorios)
 - `NODE_ENV=production`
-- `NEXT_PUBLIC_SITE_URL=https://tu-dominio.com.ar`
+- `NEXT_PUBLIC_SITE_URL=https://aguasdelcerroapp-production.up.railway.app`  
+  (cuando el `.com.ar` esté activo, cambialo a `https://aguasdelcerro.com.ar`)
 
 Localmente: copiá `.env.example` → `.env.local` y completá los valores.
 
-## Dominio de DonWeb apuntando a Railway
+## Conectar dominio `.com.ar` de DonWeb a Railway
 
-La app corre en Railway. En DonWeb solo configurás el DNS del dominio:
+La app **sigue en Railway**. DonWeb solo administra el dominio y el DNS.
 
-1. En Railway → **Settings** → **Networking** → **Custom Domain** → agregá tu dominio (ej. `aguasdelcerro.com` o `www.aguasdelcerro.com`).
-2. Railway te muestra un registro **CNAME** (o A).
-3. En el panel DNS de DonWeb:
-   - Para `www`: tipo **CNAME** → valor que te da Railway (ej. `xxx.up.railway.app`).
-   - Para dominio raíz (`@`): según DonWeb, usá CNAME flattening / ALIAS si lo ofrece, o el registro A que indique Railway.
-4. Esperá la propagación DNS (puede tardar minutos u horas). Railway emite el certificado SSL solo.
+### Paso 1 — Railway (Custom Domain)
 
-> **Nota:** DonWeb hosting compartido (cPanel/PHP) no sirve para correr Next.js. Lo correcto es hostear la app en Railway (o un VPS con Node) y usar DonWeb solo para el **dominio + DNS**.
+1. Entrá a tu servicio en Railway.
+2. **Settings → Networking → Custom Domain**.
+3. Agregá:
+   - `aguasdelcerro.com.ar`
+   - `www.aguasdelcerro.com.ar`
+4. Railway te va a mostrar los registros DNS a crear (normalmente **CNAME** hacia algo como `xxxxx.up.railway.app`, o un registro **A** / instrucciones para el apex).
+
+### Paso 2 — DonWeb (DNS del dominio)
+
+En el panel DNS de DonWeb para `aguasdelcerro.com.ar`:
+
+| Tipo | Nombre / Host | Valor / Destino | TTL |
+|------|----------------|-----------------|-----|
+| CNAME | `www` | el target que te da Railway (ej. `aguasdelcerroapp-production.up.railway.app` o el CNAME específico) | 3600 |
+| CNAME o ALIAS/A | `@` (raíz) | según indique Railway para el dominio raíz | 3600 |
+
+Notas:
+- Si DonWeb no permite CNAME en `@`, usá el registro **A** / **ALIAS** que Railway muestre al agregar el custom domain.
+- **No** apuntes el dominio al hosting PHP de DonWeb.
+- Sacá o evitá registros viejos de `www` / `@` que apunten a otro hosting.
+
+### Paso 3 — SSL y variable final
+
+1. Esperá la propagación DNS (minutos a unas horas).
+2. Railway emite el certificado SSL solo cuando el DNS ya apunta bien.
+3. En Railway → Variables, actualizá:
+   ```bash
+   NEXT_PUBLIC_SITE_URL=https://aguasdelcerro.com.ar
+   ```
+4. Hacé **Redeploy**.
+
+### Verificación rápida
+
+- https://aguasdelcerro.com.ar  
+- https://www.aguasdelcerro.com.ar  
+- https://aguasdelcerro.com.ar/admin/login  
+
+> **Importante:** DonWeb hosting compartido (cPanel/PHP) no sirve para Next.js. Usá DonWeb solo para **dominio + DNS**.
 
 ## Panel de administración
 

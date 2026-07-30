@@ -6,6 +6,7 @@ import Footer from '@/components/layout/Footer';
 import Loader from '@/components/layout/Loader';
 import WhatsAppFloat from '@/components/shared/WhatsAppFloat';
 import { SITE } from '@/lib/constants';
+import { getSiteUrl } from '@/lib/site-url';
 
 const cormorant = Cormorant_Garamond({
   subsets: ['latin'],
@@ -26,17 +27,18 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://aguasdelcerro.com'),
+  metadataBase: new URL(getSiteUrl()),
   title: {
     default: `${SITE.name} | ${SITE.tagline}`,
     template: `%s | ${SITE.name}`,
   },
   description:
     'Refugio de montaña en La Rioja, Argentina. Parque térmico y mirador gastronómico con vistas panorámicas. Una experiencia de lujo, naturaleza y tranquilidad.',
-  keywords: ['parque térmico', 'La Rioja', 'mirador gastronómico', 'turismo de lujo', 'Argentina'],
+  keywords: ['parque térmico', 'La Rioja', 'mirador gastronómico', 'turismo de lujo', 'Argentina', 'aguasdelcerro.com.ar'],
   openGraph: {
     type: 'website',
     locale: 'es_AR',
+    url: getSiteUrl(),
     siteName: SITE.name,
     title: `${SITE.name} | ${SITE.tagline}`,
     description: 'Parque térmico y mirador gastronómico en La Rioja, Argentina.',
@@ -50,6 +52,9 @@ export const metadata: Metadata = {
   },
   robots: { index: true, follow: true },
   manifest: '/manifest.json',
+  alternates: {
+    canonical: getSiteUrl(),
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
