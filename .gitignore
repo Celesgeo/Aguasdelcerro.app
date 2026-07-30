@@ -1,0 +1,89 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+Thumbs.db
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+
+# debug / logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+*.log
+
+# environment & secrets — NUNCA subir al repo
+.env
+.env.*
+!.env.example
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# datos de socios / panel admin
+/data/*.json
+!/data/.gitkeep
+
+# deploy platforms
+.vercel
+.railway
+.turbo
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# IDE / Cursor / agentes — chats, pedidos y contexto local
+.cursor/
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# chats, transcripts, pedidos y notas de armado
+**/agent-transcripts/
+**/chats/
+**/chat/
+**/pedidos/
+**/prompts/
+**/*transcript*
+**/*pedido*
+**/*conversacion*
+**/*conversation*
+*.chat.md
+*.chat.json
+CHAT*.md
+PEDIDOS*.md
+NOTAS*.md
+TODO-LOCAL.md
+
+# OS / backups
+*.bak
+*.tmp
+*.orig
+*~
+.AppleDouble
+.LSOverride

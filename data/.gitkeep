@@ -1,0 +1,7 @@
+# Datos persistentes locales (socios). En producción preferí volumen o DB.
+data/members-store.json
+
+# Env
+.env
+.env.local
+.env*.local
