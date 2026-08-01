@@ -11,6 +11,7 @@ import {
   formatMembershipPrice,
   type MembershipTier,
 } from '@/lib/memberships';
+import { getPaymentLink } from '@/lib/payment-links';
 
 export const metadata: Metadata = {
   title: 'Membresías',
@@ -28,6 +29,7 @@ function TierCard({
   dark?: boolean;
 }) {
   const highlighted = Boolean(tier.highlight) || dark;
+  const paymentLink = getPaymentLink(tier.id);
   const shortName = tier.name
     .replace('Membresía ', '')
     .replace('Empresa Fundadora ', '')
@@ -140,9 +142,20 @@ function TierCard({
           </p>
         )}
 
-        <Button href="#consulta" variant={highlighted ? 'primary' : 'ghost'} className="w-full">
-          Consultar
-        </Button>
+        <div className="mt-auto flex flex-col gap-3">
+          {paymentLink ? (
+            <Button href={paymentLink} variant={highlighted ? 'primary' : 'ghost'} className="w-full">
+              Pagar ahora
+            </Button>
+          ) : null}
+          <Button
+            href="#consulta"
+            variant={paymentLink ? 'ghost' : highlighted ? 'primary' : 'ghost'}
+            className="w-full"
+          >
+            {paymentLink ? 'Consultar' : 'Consultar / Reservar'}
+          </Button>
+        </div>
       </article>
     </ScrollReveal>
   );
@@ -198,7 +211,7 @@ export default function MembresiasPage() {
             light
             eyebrow="Consulta"
             title="Escribinos por WhatsApp"
-            description="Completá el formulario y te redirigimos a WhatsApp con tu consulta de membresía lista para enviar."
+            description="Si preferís pagar online, usá “Pagar ahora” en el plan. Si tenés dudas o querés plan empresa, completá el formulario y te abrimos WhatsApp con tu consulta lista."
           />
           <div className="mt-4 rounded-sm bg-brand-cream/95 p-6 md:p-10">
             <MembershipInquiryForm />

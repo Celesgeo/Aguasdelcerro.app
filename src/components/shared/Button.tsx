@@ -34,6 +34,19 @@ export default function Button({
     'inline-flex items-center justify-center px-8 py-3.5 text-sm tracking-[0.2em] uppercase font-body transition-all duration-500 rounded-sm disabled:opacity-45 disabled:cursor-not-allowed';
 
   if (href) {
+    const external = /^https?:\/\//i.test(href);
+    if (external) {
+      return (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`${base} ${styles[variant]} ${className}`}
+        >
+          {children}
+        </a>
+      );
+    }
     return (
       <Link href={href} className={`${base} ${styles[variant]} ${className}`}>
         {children}
