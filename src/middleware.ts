@@ -16,9 +16,11 @@ export async function middleware(request: NextRequest) {
   const host = request.headers.get('host') ?? '';
 
   // Railway o dominio sin www → www.aguasdelcerro.com.ar (301)
-  const canonicalTarget = getCanonicalRedirectTarget(host, pathname, request.nextUrl.search);
-  if (canonicalTarget) {
-    return NextResponse.redirect(canonicalTarget, 301);
+  if (pathname !== '/api/health') {
+    const canonicalTarget = getCanonicalRedirectTarget(host, pathname, request.nextUrl.search);
+    if (canonicalTarget) {
+      return NextResponse.redirect(canonicalTarget, 301);
+    }
   }
 
   // Proteger APIs admin (excepto login)
