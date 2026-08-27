@@ -1,16 +1,27 @@
 import type { Metadata } from 'next';
 import { SITE } from '@/lib/constants';
+import JsonLd from '@/components/seo/JsonLd';
 import SectionHeading from '@/components/shared/SectionHeading';
 import { WHATSAPP_PRIMARY_URL, WHATSAPP_SECONDARY_URL } from '@/lib/whatsapp';
+import { breadcrumbJsonLd, createPageMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createPageMetadata({
   title: 'Contacto',
-  description: 'Contactá a Aguas del Cerro en La Rioja. WhatsApp, email e Instagram.',
-};
+  description:
+    'Contactá a Aguas del Cerro en La Rioja, Argentina. WhatsApp, email e Instagram para reservas y consultas.',
+  path: '/contacto',
+  keywords: ['contacto', 'WhatsApp', 'reservas La Rioja'],
+});
 
 export default function ContactoPage() {
   return (
     <div className="pt-28 pb-28 bg-brand-cream min-h-screen">
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: 'Inicio', path: '/' },
+          { name: 'Contacto', path: '/contacto' },
+        ])}
+      />
       <div className="mx-auto max-w-3xl px-6 text-center">
         <SectionHeading
           eyebrow="Contacto"

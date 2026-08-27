@@ -4,6 +4,8 @@ export const SITE = {
   location: 'La Rioja, Argentina',
   email: 'info@aguasdelcerro.com.ar',
   domain: 'aguasdelcerro.com.ar',
+  /** Host público canónico para Google (con www). */
+  publicHost: 'www.aguasdelcerro.com.ar',
   instagram: 'https://www.instagram.com/aguasdelcerro',
   whatsappPrimary: '543804910523',
   whatsappSecondary: '543804941981',

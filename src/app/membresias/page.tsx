@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Check } from 'lucide-react';
+import JsonLd from '@/components/seo/JsonLd';
 import SectionHeading from '@/components/shared/SectionHeading';
 import ScrollReveal from '@/components/shared/ScrollReveal';
 import Button from '@/components/shared/Button';
@@ -12,12 +13,15 @@ import {
   type MembershipTier,
 } from '@/lib/memberships';
 import { getPaymentLink } from '@/lib/payment-links';
+import { breadcrumbJsonLd, createPageMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createPageMetadata({
   title: 'Membresías',
   description:
-    'Membresías personales y Empresa Fundadora (USD) de Aguas del Cerro. Experiencias transferibles con beneficios exclusivos.',
-};
+    'Membresías personales y Empresa Fundadora de Aguas del Cerro. Experiencias transferibles con beneficios exclusivos en La Rioja.',
+  path: '/membresias',
+  keywords: ['membresías', 'club térmico', 'beneficios exclusivos'],
+});
 
 function TierCard({
   tier,
@@ -167,6 +171,12 @@ export default function MembresiasPage() {
 
   return (
     <div className="bg-brand-cream min-h-screen">
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: 'Inicio', path: '/' },
+          { name: 'Membresías', path: '/membresias' },
+        ])}
+      />
       <section className="pt-32 pb-16 px-6 lg:px-10">
         <div className="mx-auto max-w-4xl">
           <SectionHeading

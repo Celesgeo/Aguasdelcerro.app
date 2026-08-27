@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+import { SITE } from './src/lib/constants';
 
 const securityHeaders = [
   { key: 'X-DNS-Prefetch-Control', value: 'on' },
@@ -37,6 +38,17 @@ const nextConfig: NextConfig = {
   images: {
     formats: ['image/avif', 'image/webp'],
   },
+  async redirects() {
+    return [
+      // Unificar en www (dominio que debe aparecer en Google)
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: SITE.domain }],
+        destination: `https://${SITE.publicHost}/:path*`,
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {
@@ -62,7 +74,10 @@ const nextConfig: NextConfig = {
       },
       {
         source: '/api/:path*',
-        headers: [{ key: 'Cache-Control', value: 'no-store' }],
+        headers: [
+          { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
+          { key: 'Cache-Control', value: 'no-store' },
+        ],
       },
     ];
   },

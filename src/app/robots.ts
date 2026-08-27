@@ -1,8 +1,10 @@
 import { MetadataRoute } from 'next';
+import { PUBLIC_ROUTES } from '@/lib/seo';
 import { getSiteUrl } from '@/lib/site-url';
 
 export default function robots(): MetadataRoute.Robots {
   const base = getSiteUrl();
+
   return {
     rules: [
       {
@@ -12,6 +14,6 @@ export default function robots(): MetadataRoute.Robots {
       },
     ],
     sitemap: `${base}/sitemap.xml`,
-    host: base.replace(/^https?:\/\//, ''),
+    host: new URL(base).host,
   };
 }

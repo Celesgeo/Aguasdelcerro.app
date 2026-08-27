@@ -64,8 +64,7 @@ Configurá en Railway → Variables (nunca las subas al repo):
 - `ADMIN_PASSWORD` (mín. 10 caracteres, fuerte)
 - `ADMIN_SESSION_SECRET` (mín. 32 caracteres aleatorios)
 - `NODE_ENV=production`
-- `NEXT_PUBLIC_SITE_URL=https://aguasdelcerroapp-production.up.railway.app`  
-  (cuando el `.com.ar` esté activo, cambialo a `https://aguasdelcerro.com.ar`)
+- `NEXT_PUBLIC_SITE_URL=https://www.aguasdelcerro.com.ar`
 
 Localmente: copiá `.env.example` → `.env.local` y completá los valores.
 
@@ -99,12 +98,18 @@ Notas:
 ### Paso 3 — SSL y variable final
 
 1. Esperá la propagación DNS (minutos a unas horas).
-2. Railway emite el certificado SSL solo cuando el DNS ya apunta bien.
-3. En Railway → Variables, actualizá:
+2. Railway emite el certificado SSL cuando el DNS apunta bien a **ambos** hostnames.
+3. En Railway → Variables, confirmá:
    ```bash
-   NEXT_PUBLIC_SITE_URL=https://aguasdelcerro.com.ar
+   NEXT_PUBLIC_SITE_URL=https://www.aguasdelcerro.com.ar
    ```
-4. Hacé **Redeploy**.
+4. Hacé **Redeploy** para actualizar sitemap, canonical y redirecciones SEO.
+
+**Checklist SSL (ambos deben abrir sin error en el navegador):**
+- `https://www.aguasdelcerro.com.ar` — dominio principal (canonical para Google)
+- `https://aguasdelcerro.com.ar` — redirige automáticamente a www
+
+Si el raíz muestra error de certificado, en Railway → Custom Domain verificá que `aguasdelcerro.com.ar` esté agregado y en DonWeb el registro `@` apunte solo al target que indica Railway (sin registros A viejos de DonWeb).
 
 ### Verificación rápida
 

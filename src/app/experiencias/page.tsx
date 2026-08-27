@@ -1,20 +1,31 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
+import JsonLd from '@/components/seo/JsonLd';
 import SectionHeading from '@/components/shared/SectionHeading';
 import ScrollReveal from '@/components/shared/ScrollReveal';
 import { EXPERIENCES } from '@/lib/constants';
 import { getGalleryImages } from '@/lib/media';
+import { breadcrumbJsonLd, createPageMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createPageMetadata({
   title: 'Experiencias',
-  description: 'Descubrí las experiencias de Aguas del Cerro: relax, naturaleza, gastronomía y atardeceres en La Rioja.',
-};
+  description:
+    'Descubrí las experiencias de Aguas del Cerro: relax, naturaleza, gastronomía y atardeceres en La Rioja, Argentina.',
+  path: '/experiencias',
+  keywords: ['experiencias turísticas', 'relax montaña', 'atardeceres La Rioja'],
+});
 
 export default function ExperienciasPage() {
   const images = getGalleryImages();
 
   return (
     <div className="pt-28 pb-28 bg-brand-cream">
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: 'Inicio', path: '/' },
+          { name: 'Experiencias', path: '/experiencias' },
+        ])}
+      />
       <div className="mx-auto max-w-7xl px-6 lg:px-10">
         <SectionHeading
           eyebrow="Experiencias"

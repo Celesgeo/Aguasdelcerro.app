@@ -1,15 +1,21 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
+import JsonLd from '@/components/seo/JsonLd';
 import SectionHeading from '@/components/shared/SectionHeading';
 import ScrollReveal from '@/components/shared/ScrollReveal';
 import Button from '@/components/shared/Button';
 import { TERMAS_BENEFITS } from '@/lib/constants';
 import { getImagesByCategory } from '@/lib/media';
+import { breadcrumbJsonLd, createPageMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createPageMetadata({
   title: 'Parque Térmico',
-  description: 'Parque térmico en La Rioja. Bienestar, relax y conexión con la naturaleza en Aguas del Cerro.',
-};
+  description:
+    'Parque térmico en La Rioja, Argentina. Bienestar, relax y conexión con la naturaleza en Aguas del Cerro.',
+  path: '/termas',
+  image: '/images/termas-colina-noche-hd.png',
+  keywords: ['parque térmico', 'termas La Rioja', 'spa montaña', 'aguas termales'],
+});
 
 export default function TermasPage() {
   const images = getImagesByCategory('termas');
@@ -18,6 +24,12 @@ export default function TermasPage() {
 
   return (
     <div className="bg-brand-cream">
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: 'Inicio', path: '/' },
+          { name: 'Parque Térmico', path: '/termas' },
+        ])}
+      />
       <section className="relative h-[75vh] min-h-[520px]">
         <Image
           src={hero}

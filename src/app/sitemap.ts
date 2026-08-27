@@ -1,22 +1,14 @@
 import { MetadataRoute } from 'next';
+import { PUBLIC_ROUTES } from '@/lib/seo';
 import { getSiteUrl } from '@/lib/site-url';
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const base = getSiteUrl();
-  const pages = [
-    '',
-    '/experiencias',
-    '/galeria',
-    '/gastronomia',
-    '/termas',
-    '/membresias',
-    '/contacto',
-    '/reservas',
-  ];
-  return pages.map((path) => ({
+
+  return PUBLIC_ROUTES.map(({ path, changeFrequency, priority }) => ({
     url: `${base}${path}`,
     lastModified: new Date(),
-    changeFrequency: 'weekly' as const,
-    priority: path === '' ? 1 : 0.8,
+    changeFrequency,
+    priority,
   }));
 }

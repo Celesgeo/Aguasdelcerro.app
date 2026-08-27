@@ -1,9 +1,25 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { COOKIE_NAME, verifyAdminSessionToken } from '@/lib/admin-auth';
+import { getCanonicalRedirectTarget, shouldNoindexHost } from '@/lib/site-url';
+
+function applySeoHeaders(res: NextResponse, request: NextRequest): NextResponse {
+  const host = request.headers.get('host') ?? '';
+  if (shouldNoindexHost(host)) {
+    res.headers.set('X-Robots-Tag', 'noindex, nofollow');
+  }
+  return res;
+}
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const host = request.headers.get('host') ?? '';
+
+  // Railway o dominio sin www → www.aguasdelcerro.com.ar (301)
+  const canonicalTarget = getCanonicalRedirectTarget(host, pathname, request.nextUrl.search);
+  if (canonicalTarget) {
+    return NextResponse.redirect(canonicalTarget, 301);
+  }
 
   // Proteger APIs admin (excepto login)
   if (pathname.startsWith('/api/admin') && pathname !== '/api/admin/login') {
@@ -11,11 +27,18 @@ export async function middleware(request: NextRequest) {
     if (!(await verifyAdminSessionToken(token))) {
       return NextResponse.json({ ok: false, error: 'No autorizado' }, { status: 401 });
     }
-    return NextResponse.next();
+    return applySeoHeaders(NextResponse.next(), request);
+  }
+
+  // noindex en rutas API (robots.txt no impide indexación; esto sí)
+  if (pathname.startsWith('/api')) {
+    const res = NextResponse.next();
+    res.headers.set('X-Robots-Tag', 'noindex, nofollow');
+    return applySeoHeaders(res, request);
   }
 
   if (!pathname.startsWith('/admin')) {
-    return NextResponse.next();
+    return applySeoHeaders(NextResponse.next(), request);
   }
 
   if (pathname === '/admin/login') {
@@ -42,5 +65,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin', '/admin/:path*', '/api/admin/:path*'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|images/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)'],
 };
