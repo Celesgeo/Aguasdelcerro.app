@@ -2,10 +2,13 @@
   "name": "Aguas del Cerro",
   "short_name": "Aguas del Cerro",
   "description": "Parque Térmico & Mirador Gastronómico — La Rioja, Argentina",
-  "start_url": "/",
+  "start_url": "https://www.aguasdelcerro.com.ar/",
+  "scope": "https://www.aguasdelcerro.com.ar/",
+  "id": "https://www.aguasdelcerro.com.ar/",
   "display": "standalone",
   "background_color": "#4B220C",
   "theme_color": "#4B220C",
+  "lang": "es-AR",
   "icons": [
     {
       "src": "/images/logo.png",

@@ -76,6 +76,7 @@ export function createRootMetadata(): Metadata {
 
   return {
     metadataBase: new URL(siteUrl),
+    applicationName: SITE.name,
     title: {
       default: `${SITE.name} | ${SITE.tagline}`,
       template: `%s | ${SITE.name}`,
@@ -95,6 +96,11 @@ export function createRootMetadata(): Metadata {
     creator: SITE.name,
     publisher: SITE.name,
     category: 'travel',
+    icons: {
+      icon: [{ url: '/images/logo.png', type: 'image/png', sizes: '512x512' }],
+      apple: [{ url: '/images/logo.png', type: 'image/png', sizes: '512x512' }],
+      shortcut: ['/images/logo.png'],
+    },
     openGraph: {
       type: 'website',
       locale: 'es_AR',
@@ -138,6 +144,7 @@ export function webSiteJsonLd() {
     '@type': 'WebSite',
     '@id': `${siteUrl}/#website`,
     name: SITE.name,
+    alternateName: ['Aguas del Cerro La Rioja', SITE.domain],
     url: siteUrl,
     description: SITE.tagline,
     inLanguage: 'es-AR',
