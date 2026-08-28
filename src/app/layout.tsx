@@ -44,6 +44,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="es-AR" className={`${cormorant.variable} ${playfair.variable} ${inter.variable} h-full`}>
       <head>
+        <meta
+          name="google-site-verification"
+          content="2Lg9VCEJ54m2kLcJB9gjAVw_B0VMxoZhdglIGT_o6Ug"
+        />
         <JsonLd
           data={[organizationJsonLd(), webSiteJsonLd(), localBusinessJsonLd(), faqPageJsonLd()]}
         />
