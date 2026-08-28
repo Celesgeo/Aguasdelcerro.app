@@ -69,7 +69,9 @@ export function createRootMetadata(): Metadata {
     'Refugio de montaña en La Rioja, Argentina. Parque térmico y mirador gastronómico con vistas panorámicas. Una experiencia de lujo, naturaleza y tranquilidad.';
 
   const verification: Metadata['verification'] = {};
-  const googleVerification = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION?.trim();
+  const googleVerification =
+    process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION?.trim() ||
+    '2Lg9VCEJ54m2kLcJB9gjAVw_B0VMxoZhdglIGT_o6Ug';
   if (googleVerification) {
     verification.google = googleVerification;
   }
@@ -96,11 +98,6 @@ export function createRootMetadata(): Metadata {
     creator: SITE.name,
     publisher: SITE.name,
     category: 'travel',
-    icons: {
-      icon: [{ url: '/images/logo.png', type: 'image/png', sizes: '512x512' }],
-      apple: [{ url: '/images/logo.png', type: 'image/png', sizes: '512x512' }],
-      shortcut: ['/images/logo.png'],
-    },
     openGraph: {
       type: 'website',
       locale: 'es_AR',
