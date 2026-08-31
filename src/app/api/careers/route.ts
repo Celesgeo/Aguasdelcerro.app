@@ -135,15 +135,20 @@ export async function POST(request: Request) {
       cvFilename: cvOriginalName,
     });
 
-    await saveCareerApplication(applicationData, buffer, ext);
+    try {
+      await saveCareerApplication(applicationData, buffer, ext);
+    } catch {
+      // El email ya salió; el backup en disco es opcional en producción efímera.
+    }
 
     return NextResponse.json({
       ok: true,
       message: '¡Gracias! Recibimos tu postulación. Nos contactaremos si tu perfil encaja con la búsqueda.',
     });
-  } catch {
+  } catch (error) {
+    console.error('[careers] postulación fallida:', error);
     return NextResponse.json(
-      { ok: false, error: 'No se pudo enviar la postulación. Intentá de nuevo.' },
+      { ok: false, error: 'No se pudo enviar la postulación. Intentá de nuevo o escribinos por WhatsApp.' },
       { status: 500 },
     );
   }

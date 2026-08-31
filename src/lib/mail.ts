@@ -10,12 +10,14 @@ type SmtpConfig = {
 };
 
 function getSmtpConfig(): SmtpConfig | null {
-  const host = process.env.SMTP_HOST?.trim();
-  const user = process.env.SMTP_USER?.trim();
-  const pass = process.env.SMTP_PASS?.trim();
-  if (!host || !user || !pass) return null;
+  const rawPass = process.env.SMTP_PASS?.trim();
+  if (!rawPass) return null;
+  const pass = rawPass.replace(/\s+/g, '');
+  const user = process.env.SMTP_USER?.trim() || SITE.email;
 
+  const host = process.env.SMTP_HOST?.trim() || 'smtp.gmail.com';
   const port = Number(process.env.SMTP_PORT ?? '587');
+
   return {
     host,
     port,
@@ -48,7 +50,10 @@ export async function sendCareerApplicationEmail(params: {
   const from = process.env.SMTP_FROM?.trim() || config.auth.user;
   const puestoLabel = getCareerPositionLabel(params.puesto);
 
-  const transporter = nodemailer.createTransport(config);
+  const transporter = nodemailer.createTransport({
+    ...config,
+    ...(config.port === 587 ? { requireTLS: true } : {}),
+  });
 
   const textBody = [
     `Nueva postulación laboral — ${SITE.name}`,
