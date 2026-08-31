@@ -14,6 +14,7 @@ import {
 } from '@/components/home/ExtraSections';
 import InstagramButton from '@/components/shared/InstagramButton';
 import InstagramGallery from '@/components/shared/InstagramGallery';
+import SectionHeading from '@/components/shared/SectionHeading';
 import { getGalleryImages, getHeroMedia, getImagesByCategory } from '@/lib/media';
 
 export default function HomePage() {
@@ -41,10 +42,18 @@ export default function HomePage() {
       <WeatherWidget />
       <WhyUsSection />
       <TimelineSection />
-      <section className="py-20 bg-brand-brown text-center">
-        <InstagramButton />
-        <div className="mx-auto max-w-5xl px-6 mt-12">
+      <section className="py-28 bg-brand-brown">
+        <div className="mx-auto max-w-6xl px-6 lg:px-10">
+          <SectionHeading
+            light
+            eyebrow="Instagram"
+            title="La experiencia en imágenes"
+            description="Termas, mirador y paisajes riojanos. Seguinos para ver novedades y momentos del día a día."
+          />
           <InstagramGallery />
+          <div className="mt-12 text-center">
+            <InstagramButton />
+          </div>
         </div>
       </section>
       <MapSection />
