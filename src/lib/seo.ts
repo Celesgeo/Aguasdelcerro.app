@@ -12,6 +12,7 @@ export const PUBLIC_ROUTES = [
   { path: '/galeria', priority: 0.7, changeFrequency: 'weekly' as const },
   { path: '/reservas', priority: 0.8, changeFrequency: 'monthly' as const },
   { path: '/contacto', priority: 0.7, changeFrequency: 'yearly' as const },
+  { path: '/trabaja-con-nosotros', priority: 0.6, changeFrequency: 'monthly' as const },
 ] as const;
 
 type PageSeoOptions = {

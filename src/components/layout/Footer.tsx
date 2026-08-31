@@ -48,8 +48,10 @@ export default function Footer() {
                   <FaInstagram /> @aguasdelcerro
                 </a>
               </li>
-              <li className="inline-flex items-center gap-2">
-                <Mail size={16} /> {SITE.email}
+              <li>
+                <a href={`mailto:${SITE.email}`} className="inline-flex items-center gap-2 hover:text-brand-gold">
+                  <Mail size={16} /> {SITE.email}
+                </a>
               </li>
               <li>
                 <a href={SITE.mapsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 hover:text-brand-gold">

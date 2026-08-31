@@ -47,6 +47,9 @@ yarn-error.log*
 /data/*.json
 !/data/.gitkeep
 
+# postulaciones laborales (CVs)
+/data/careers/
+
 # deploy platforms
 .vercel
 .railway

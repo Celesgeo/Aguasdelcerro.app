@@ -2,7 +2,7 @@ export const SITE = {
   name: 'Aguas del Cerro',
   tagline: 'Parque Térmico & Mirador Gastronómico',
   location: 'La Rioja, Argentina',
-  email: 'info@aguasdelcerro.com.ar',
+  email: 'contacto@aguasdelcerro.net',
   domain: 'aguasdelcerro.com.ar',
   /** Host público canónico para Google (con www). */
   publicHost: 'www.aguasdelcerro.com.ar',
@@ -23,6 +23,7 @@ export const NAV_LINKS = [
   { href: '/galeria', label: 'Galería' },
   { href: '/contacto', label: 'Contacto' },
   { href: '/reservas', label: 'Reservas' },
+  { href: '/trabaja-con-nosotros', label: 'Trabajá con nosotros' },
 ] as const;
 
 export const EXPERIENCES = [

@@ -37,10 +37,13 @@ export default function ContactoPage() {
             <p className="text-xs uppercase tracking-[0.2em] text-brand-gold font-body">Contacto alternativo</p>
             <p className="font-display text-2xl text-brand-brown mt-2">+54 380 4941981</p>
           </a>
-          <div className="border border-brand-brown/10 bg-white p-6">
+          <a
+            href={`mailto:${SITE.email}`}
+            className="block border border-brand-brown/10 bg-white p-6 hover:border-brand-gold transition-colors"
+          >
             <p className="text-xs uppercase tracking-[0.2em] text-brand-gold font-body">Email</p>
             <p className="font-body text-brand-brown mt-2">{SITE.email}</p>
-          </div>
+          </a>
           <a href={SITE.instagram} target="_blank" rel="noopener noreferrer" className="block border border-brand-brown/10 bg-white p-6 hover:border-brand-gold transition-colors">
             <p className="text-xs uppercase tracking-[0.2em] text-brand-gold font-body">Instagram</p>
             <p className="font-body text-brand-brown mt-2">@aguasdelcerro</p>
