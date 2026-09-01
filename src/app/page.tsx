@@ -25,7 +25,7 @@ export default function HomePage() {
     <>
       <Hero videoSrc={hero.video} fallbackImage={hero.fallbackImage} slides={hero.slides} />
       <ExperienceSection />
-      <TermasSection image={sections.termas} overviewImage={sections.termas} vipImage={sections.cartel} />
+      <TermasSection />
       <MiradorSection image={sections.mirador} />
       <ExperiencesGrid />
       <CountdownSection />

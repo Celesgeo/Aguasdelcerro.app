@@ -2,19 +2,14 @@ import Image from 'next/image';
 import { Droplets, Leaf, Moon, Sparkles } from 'lucide-react';
 import SectionHeading from '@/components/shared/SectionHeading';
 import ScrollReveal from '@/components/shared/ScrollReveal';
+import MediaVideo from '@/components/shared/MediaVideo';
 import { TERMAS_BENEFITS } from '@/lib/constants';
+import { getTermasMedia } from '@/lib/termas-media';
 
 const icons = [Droplets, Leaf, Moon, Sparkles];
 
-interface TermasSectionProps {
-  image: string;
-  vipImage?: string;
-  overviewImage?: string;
-}
-
-export default function TermasSection({ image, vipImage, overviewImage }: TermasSectionProps) {
-  const main = overviewImage ?? image;
-  const detail = vipImage ?? image;
+export default function TermasSection() {
+  const media = getTermasMedia();
 
   return (
     <section className="bg-brand-brown py-28 lg:py-36">
@@ -28,33 +23,27 @@ export default function TermasSection({ image, vipImage, overviewImage }: Termas
 
         <div className="mb-16 grid gap-4 lg:grid-cols-12">
           <ScrollReveal className="lg:col-span-8">
-            <div className="relative aspect-[16/10] overflow-hidden border border-brand-gold/15">
-              <Image
-                src={main}
-                alt="Piletas privadas en la colina al anochecer"
-                fill
-                className="object-cover"
-                style={{ objectPosition: 'center 48%' }}
-                sizes="(max-width:1024px) 100vw, 66vw"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-brand-brown/55 via-transparent to-transparent" />
-              <p className="absolute bottom-5 left-5 text-xs tracking-[0.25em] uppercase text-brand-cream/80 font-body">
-                Vista general · 13 piletas privadas
-              </p>
-            </div>
+            <MediaVideo
+              src={media.video}
+              poster={media.poster}
+              label="Vista general · 13 piletas privadas"
+              className="aspect-[16/10] border border-brand-gold/15"
+            />
           </ScrollReveal>
 
           <ScrollReveal delay={0.1} className="lg:col-span-4">
             <div className="relative aspect-[16/10] lg:aspect-auto lg:h-full min-h-[280px] overflow-hidden border border-brand-gold/15">
               <Image
-                src={detail}
-                alt="Sector VIP con deck de madera y cama Bali"
+                src={media.vip}
+                alt="Sector VIP con deck de madera y camas Bali"
                 fill
                 className="object-cover"
-                style={{ objectPosition: 'center 40%' }}
+                style={{ objectPosition: 'center 45%' }}
                 sizes="(max-width:1024px) 100vw, 33vw"
+                quality={92}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-brand-brown/70 via-transparent to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-brand-black/75 via-brand-black/15 to-transparent" />
+              <div className="absolute inset-3 border border-brand-gold/20 pointer-events-none" />
               <div className="absolute bottom-5 left-5 right-5">
                 <p className="text-xs tracking-[0.25em] uppercase text-brand-gold font-body mb-2">Sector VIP</p>
                 <p className="font-subtitle text-xl text-brand-cream">Deck exclusivo · Camas Bali</p>
