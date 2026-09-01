@@ -15,28 +15,19 @@ import {
 import InstagramButton from '@/components/shared/InstagramButton';
 import InstagramGallery from '@/components/shared/InstagramGallery';
 import SectionHeading from '@/components/shared/SectionHeading';
-import { getGalleryImages, getHeroMedia, getImagesByCategory } from '@/lib/media';
+import { getGalleryImages, getHeroMedia, getSectionMedia } from '@/lib/media';
 
 export default function HomePage() {
   const hero = getHeroMedia();
   const galleryImages = getGalleryImages();
-  const termasImages = getImagesByCategory('termas');
-  const termasImage = termasImages[0]?.src ?? '/images/real/real-termas-piletas.jpg';
-  const termasVip = termasImages[1]?.src ?? termasImages[0]?.src ?? '/images/real/real-termas-piletas.jpg';
-  const miradorImage =
-    getImagesByCategory('mirador').find((i) => i.orientation === 'landscape')?.src ??
-    '/images/real/real-evento-mirador-noche.jpg';
-  const experienceImage =
-    getImagesByCategory('atardeceres')[0]?.src ?? '/images/real/real-atardecer-montana.jpg';
-  const landscapeImage =
-    getImagesByCategory('naturaleza')[0]?.src ?? '/images/real/real-naturaleza-lechuza.jpg';
+  const sections = getSectionMedia();
 
   return (
     <>
       <Hero videoSrc={hero.video} fallbackImage={hero.fallbackImage} slides={hero.slides} />
-      <ExperienceSection image={experienceImage} landscapeImage={landscapeImage} />
-      <TermasSection image={termasImage} overviewImage={termasImage} vipImage={termasVip} />
-      <MiradorSection image={miradorImage} />
+      <ExperienceSection image={sections.experiencia} landscapeImage={sections.naturaleza} />
+      <TermasSection image={sections.termas} overviewImage={sections.termas} vipImage={sections.cartel} />
+      <MiradorSection image={sections.mirador} />
       <ExperiencesGrid images={galleryImages} />
       <CountdownSection />
       <WeatherWidget />

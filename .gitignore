@@ -53,6 +53,14 @@ yarn-error.log*
 # imágenes IA archivadas localmente
 /public/images/_archivo-ai/
 
+# material bruto subido por el cliente (no versionar)
+/public/videos/nuevos/*
+!/public/videos/nuevos/.gitkeep
+!/public/videos/nuevos/LEEME.txt
+/public/images/nuevas/*
+!/public/images/nuevas/.gitkeep
+!/public/images/nuevas/LEEME.txt
+
 # deploy platforms
 .vercel
 .railway

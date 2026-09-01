@@ -5,7 +5,7 @@ import SectionHeading from '@/components/shared/SectionHeading';
 import ScrollReveal from '@/components/shared/ScrollReveal';
 import Button from '@/components/shared/Button';
 import { TERMAS_BENEFITS } from '@/lib/constants';
-import { getImagesByCategory } from '@/lib/media';
+import { getImagesByCategory, getSectionMedia } from '@/lib/media';
 import { breadcrumbJsonLd, createPageMetadata } from '@/lib/seo';
 
 export const metadata: Metadata = createPageMetadata({
@@ -18,9 +18,10 @@ export const metadata: Metadata = createPageMetadata({
 });
 
 export default function TermasPage() {
+  const sections = getSectionMedia();
   const images = getImagesByCategory('termas');
-  const hero = images[0]?.src ?? '/images/real/real-termas-piletas.jpg';
-  const vip = images[1]?.src ?? images[0]?.src;
+  const hero = images[0]?.src ?? sections.termas;
+  const detail = sections.cartel;
 
   return (
     <div className="bg-brand-cream">
@@ -83,12 +84,12 @@ export default function TermasPage() {
           ))}
         </div>
 
-        {vip && (
+        {detail && (
           <ScrollReveal className="mt-16">
             <div className="relative aspect-[21/9] overflow-hidden">
               <Image
-                src={vip}
-                alt="Sector VIP Aguas del Cerro"
+                src={detail}
+                alt="Aguas del Cerro — cartel nocturno en el cerro"
                 fill
                 className="object-cover"
                 style={{ objectPosition: 'center 40%' }}

@@ -47,6 +47,7 @@ export default function Hero({ videoSrc, fallbackImage, slides = [] }: HeroProps
           muted
           loop
           playsInline
+          preload="metadata"
           className="absolute inset-0 h-full w-full object-cover scale-105"
           poster={fallbackImage}
         >

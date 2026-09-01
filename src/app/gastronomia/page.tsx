@@ -4,7 +4,7 @@ import JsonLd from '@/components/seo/JsonLd';
 import SectionHeading from '@/components/shared/SectionHeading';
 import ScrollReveal from '@/components/shared/ScrollReveal';
 import Button from '@/components/shared/Button';
-import { getImagesByCategory } from '@/lib/media';
+import { getImagesByCategory, getSectionMedia } from '@/lib/media';
 import { breadcrumbJsonLd, createPageMetadata } from '@/lib/seo';
 
 export const metadata: Metadata = createPageMetadata({
@@ -17,11 +17,11 @@ export const metadata: Metadata = createPageMetadata({
 });
 
 export default function GastronomiaPage() {
+  const sections = getSectionMedia();
   const images = getImagesByCategory('mirador');
   const hero =
-    images.find((i) => i.orientation === 'landscape')?.src ??
-    images[0]?.src ??
-    '/images/real/real-evento-mirador-noche.jpg';
+    images.find((i) => i.filename.includes('real-evento'))?.src ??
+    sections.mirador;
 
   return (
     <div className="bg-brand-cream">

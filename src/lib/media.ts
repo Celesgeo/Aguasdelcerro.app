@@ -18,7 +18,6 @@ export interface MediaImage {
   category: MediaCategory;
   alt: string;
   orientation: 'landscape' | 'portrait' | 'square';
-  /** Fotos reales del cliente (prioridad en hero y galería). */
   isReal?: boolean;
 }
 
@@ -37,15 +36,13 @@ export interface HeroSlide {
 const IMAGE_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp', '.avif']);
 const VIDEO_EXT = new Set(['.mp4', '.webm', '.mov']);
 
+/** Video principal del hero (optimizado para web). */
+export const HERO_VIDEO = '/videos/hero-noche.mp4';
+
 const IMAGE_DIRS = [
   { dir: 'real', urlPrefix: '/images/real' },
   { dir: 'nuevas', urlPrefix: '/images/nuevas' },
   { dir: '', urlPrefix: '/images' },
-] as const;
-
-const VIDEO_DIRS = [
-  { dir: 'nuevos', urlPrefix: '/videos/nuevos' },
-  { dir: '', urlPrefix: '/videos' },
 ] as const;
 
 function readDirSafe(dir: string): string[] {
@@ -64,16 +61,9 @@ function classifyImage(filename: string): MediaCategory {
   if (n.includes('real-naturaleza') || n.includes('lechuza')) return 'naturaleza';
   if (n.includes('real-atardecer') || n.includes('atardecer') || n.includes('sunset')) return 'atardeceres';
   if (n.includes('cactus') || n.includes('luna') || n.includes('paisaje')) return 'paisajes';
-  if (
-    n.includes('termas') ||
-    n.includes('vip') ||
-    n.includes('colina') ||
-    n.includes('lujo-montana')
-  ) {
-    return 'termas';
-  }
+  if (n.includes('termas') || n.includes('vip') || n.includes('colina')) return 'termas';
   if (n.includes('restaurante') || n.includes('gastro')) return 'restaurante';
-  if (n.includes('montana') || n.includes('montaña')) return 'paisajes';
+  if (n.includes('montana') || n.includes('montaña')) return 'naturaleza';
   if (n.includes('naturaleza') || n.includes('nature')) return 'naturaleza';
   return 'experiencia';
 }
@@ -81,15 +71,10 @@ function classifyImage(filename: string): MediaCategory {
 function altFromFilename(filename: string, category: MediaCategory): string {
   const n = filename.toLowerCase();
   if (n.includes('real-cartel')) return 'Cartel iluminado de Aguas del Cerro de noche';
-  if (n.includes('real-evento')) return 'Evento nocturno en el mirador con vista a la ciudad';
+  if (n.includes('real-evento')) return 'Mirador nocturno con vista a la ciudad de La Rioja';
   if (n.includes('real-termas') || n.includes('piletas')) return 'Piletas térmicas de piedra en Aguas del Cerro';
   if (n.includes('real-naturaleza') || n.includes('lechuza')) return 'Fauna y naturaleza de La Rioja';
   if (n.includes('real-atardecer')) return 'Atardecer en las montañas riojanas';
-  if (n.includes('cactus') || n.includes('luna')) {
-    return 'Paisaje riojano con cactus y luna en La Rioja';
-  }
-  if (n.includes('vip')) return 'Sector VIP con deck de madera y cama Bali';
-  if (n.includes('colina')) return 'Piletas privadas en la colina al anochecer';
 
   const map: Record<MediaCategory, string> = {
     logo: 'Logo Aguas del Cerro',
@@ -108,19 +93,11 @@ function altFromFilename(filename: string, category: MediaCategory): string {
 function guessOrientation(filename: string): 'landscape' | 'portrait' | 'square' {
   const n = filename.toLowerCase();
   if (n.includes('logo')) return 'square';
-  if (n.includes('real-naturaleza') || n.includes('real-termas') || n.includes('real-atardecer')) {
+  if (n.includes('real-cartel') || n.includes('real-termas') || n.includes('real-naturaleza') || n.includes('real-atardecer')) {
     return 'portrait';
   }
-  if (n.includes('real-cartel') || n.includes('real-evento') || n.includes('-hd.')) return 'landscape';
-  if (n.includes('mirador-atardecer.png') || n.includes('termas-piscina')) return 'portrait';
+  if (n.includes('real-evento')) return 'landscape';
   return 'landscape';
-}
-
-function realPhotoScore(filename: string): number {
-  const n = filename.toLowerCase();
-  if (n.startsWith('real-')) return 0;
-  if (n.includes('-hd.')) return 2;
-  return 1;
 }
 
 export function getImages(): MediaImage[] {
@@ -130,6 +107,7 @@ export function getImages(): MediaImage[] {
   for (const { dir, urlPrefix } of IMAGE_DIRS) {
     const absolute = dir ? path.join(publicRoot, dir) : publicRoot;
     for (const filename of readDirSafe(absolute)) {
+      if (filename === 'LEEME.txt') continue;
       if (!IMAGE_EXT.has(path.extname(filename).toLowerCase())) continue;
       const category = classifyImage(filename);
       items.push({
@@ -143,94 +121,70 @@ export function getImages(): MediaImage[] {
     }
   }
 
-  return items.sort((a, b) => realPhotoScore(a.filename) - realPhotoScore(b.filename));
+  return items;
 }
 
 export function getVideos(): MediaVideo[] {
-  const publicRoot = path.join(process.cwd(), 'public', 'videos');
-  const videos: MediaVideo[] = [];
-
-  for (const { dir, urlPrefix } of VIDEO_DIRS) {
-    const absolute = dir ? path.join(publicRoot, dir) : publicRoot;
-    for (const filename of readDirSafe(absolute)) {
-      if (filename === 'LEEME.txt') continue;
-      if (!VIDEO_EXT.has(path.extname(filename).toLowerCase())) continue;
-      videos.push({
-        src: `${urlPrefix}/${filename}`,
-        filename,
-        alt: 'Video Aguas del Cerro',
-      });
-    }
-  }
-
-  return videos;
+  const dir = path.join(process.cwd(), 'public', 'videos');
+  return readDirSafe(dir)
+    .filter((f) => VIDEO_EXT.has(path.extname(f).toLowerCase()))
+    .map((filename) => ({
+      src: `/videos/${filename}`,
+      filename,
+      alt: filename.includes('piletas') ? 'Piletas térmicas Aguas del Cerro' : 'Video nocturno Aguas del Cerro',
+    }));
 }
 
 export function getImagesByCategory(category: MediaCategory): MediaImage[] {
   return getImages().filter((img) => img.category === category);
 }
 
-function pickImage(
-  images: MediaImage[],
-  predicate: (img: MediaImage) => boolean,
-  fallback?: string,
-): MediaImage | undefined {
-  return images.find(predicate) ?? (fallback ? images.find((i) => i.src.includes(fallback)) : undefined);
+function pickImage(images: MediaImage[], predicate: (img: MediaImage) => boolean): MediaImage | undefined {
+  return images.find(predicate);
 }
 
 export function getHeroMedia() {
-  const videos = getVideos();
   const images = getImages().filter((i) => i.category !== 'logo');
+  const heroVideoPath = path.join(process.cwd(), 'public', HERO_VIDEO);
+  const video = fs.existsSync(heroVideoPath) ? HERO_VIDEO : getVideos()[0]?.src ?? null;
 
-  const miradorEvento = pickImage(images, (i) => i.filename.includes('real-evento'));
-  const miradorCartel = pickImage(images, (i) => i.filename.includes('real-cartel'));
+  const cartel = pickImage(images, (i) => i.filename.includes('real-cartel'));
+  const evento = pickImage(images, (i) => i.filename.includes('real-evento'));
   const termas = pickImage(images, (i) => i.filename.includes('real-termas'));
   const atardecer = pickImage(images, (i) => i.filename.includes('real-atardecer'));
   const naturaleza = pickImage(images, (i) => i.filename.includes('real-naturaleza'));
 
   const slides: HeroSlide[] = [
-    miradorEvento && {
-      src: miradorEvento.src,
-      alt: miradorEvento.alt,
-      position: 'center 55%',
-    },
-    miradorCartel && {
-      src: miradorCartel.src,
-      alt: miradorCartel.alt,
-      position: 'center 58%',
-    },
-    termas && {
-      src: termas.src,
-      alt: termas.alt,
-      position: 'center 45%',
-    },
-    atardecer && {
-      src: atardecer.src,
-      alt: atardecer.alt,
-      position: 'center 40%',
-    },
-    naturaleza && {
-      src: naturaleza.src,
-      alt: naturaleza.alt,
-      position: 'center 50%',
-    },
+    cartel && { src: cartel.src, alt: cartel.alt, position: 'center 55%' },
+    evento && { src: evento.src, alt: evento.alt, position: 'center 55%' },
+    termas && { src: termas.src, alt: termas.alt, position: 'center 42%' },
+    atardecer && { src: atardecer.src, alt: atardecer.alt, position: 'center 40%' },
+    naturaleza && { src: naturaleza.src, alt: naturaleza.alt, position: 'center 50%' },
   ].filter(Boolean) as HeroSlide[];
 
   const fallbackImage =
+    cartel?.src ??
+    evento?.src ??
     slides[0]?.src ??
-    images.find((i) => i.isReal)?.src ??
-    images[0]?.src ??
-    '/images/real/real-evento-mirador-noche.jpg';
+    '/images/real/real-cartel-noche.jpg';
 
-  return {
-    video: videos[0]?.src ?? null,
-    fallbackImage,
-    slides,
-  };
+  return { video, fallbackImage, slides };
 }
 
 export function getGalleryImages(): MediaImage[] {
-  const images = getImages().filter((i) => i.category !== 'logo');
-  const real = images.filter((i) => i.isReal);
-  return real.length > 0 ? real : images;
+  return getImages().filter((i) => i.category !== 'logo' && i.isReal);
+}
+
+/** Imagen principal por sección (fotos reales de mayor impacto). */
+export function getSectionMedia() {
+  const images = getImages();
+  const by = (name: string) => images.find((i) => i.filename.includes(name))?.src;
+
+  return {
+    termas: by('real-termas') ?? '/images/real/real-termas-piletas.jpg',
+    mirador: by('real-evento') ?? '/images/real/real-evento-mirador-noche.jpg',
+    experiencia: by('real-atardecer') ?? '/images/real/real-atardecer-montana.jpg',
+    naturaleza: by('real-naturaleza') ?? '/images/real/real-naturaleza-lechuza.jpg',
+    cartel: by('real-cartel') ?? '/images/real/real-cartel-noche.jpg',
+  };
 }
