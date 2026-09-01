@@ -3,7 +3,9 @@ import GalleryGrid from '@/components/galeria/GalleryGrid';
 import JsonLd from '@/components/seo/JsonLd';
 import SectionHeading from '@/components/shared/SectionHeading';
 import { getGalleryImages } from '@/lib/media';
+import { getAllExperienceImages } from '@/lib/experiences-media';
 import { breadcrumbJsonLd, createPageMetadata } from '@/lib/seo';
+import type { MediaImage } from '@/lib/media';
 
 export const metadata: Metadata = createPageMetadata({
   title: 'Galería',
@@ -14,7 +16,14 @@ export const metadata: Metadata = createPageMetadata({
 });
 
 export default function GaleriaPage() {
-  const images = getGalleryImages();
+  const editorial: MediaImage[] = getAllExperienceImages().map((exp) => ({
+    src: exp.src,
+    filename: exp.src.split('/').pop() ?? exp.slug,
+    category: 'experiencia',
+    alt: exp.title,
+    orientation: 'landscape',
+  }));
+  const images = [...editorial, ...getGalleryImages()];
 
   return (
     <div className="pt-28 pb-28 bg-brand-cream min-h-screen">

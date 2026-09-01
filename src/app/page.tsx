@@ -15,20 +15,19 @@ import {
 import InstagramButton from '@/components/shared/InstagramButton';
 import InstagramGallery from '@/components/shared/InstagramGallery';
 import SectionHeading from '@/components/shared/SectionHeading';
-import { getGalleryImages, getHeroMedia, getSectionMedia } from '@/lib/media';
+import { getHeroMedia, getSectionMedia } from '@/lib/media';
 
 export default function HomePage() {
   const hero = getHeroMedia();
-  const galleryImages = getGalleryImages();
   const sections = getSectionMedia();
 
   return (
     <>
       <Hero videoSrc={hero.video} fallbackImage={hero.fallbackImage} slides={hero.slides} />
-      <ExperienceSection image={sections.experiencia} landscapeImage={sections.naturaleza} />
+      <ExperienceSection />
       <TermasSection image={sections.termas} overviewImage={sections.termas} vipImage={sections.cartel} />
       <MiradorSection image={sections.mirador} />
-      <ExperiencesGrid images={galleryImages} />
+      <ExperiencesGrid />
       <CountdownSection />
       <WeatherWidget />
       <WhyUsSection />
