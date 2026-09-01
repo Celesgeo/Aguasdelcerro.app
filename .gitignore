@@ -50,6 +50,9 @@ yarn-error.log*
 # postulaciones laborales (CVs)
 /data/careers/
 
+# imágenes IA archivadas localmente
+/public/images/_archivo-ai/
+
 # deploy platforms
 .vercel
 .railway

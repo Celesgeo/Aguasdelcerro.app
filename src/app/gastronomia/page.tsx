@@ -12,7 +12,7 @@ export const metadata: Metadata = createPageMetadata({
   description:
     'Mirador gastronómico con cocina regional, atardeceres y vista panorámica en Aguas del Cerro, La Rioja.',
   path: '/gastronomia',
-  image: '/images/mirador-atardecer-hd.png',
+  image: '/images/real/real-evento-mirador-noche.jpg',
   keywords: ['mirador gastronómico', 'restaurante montaña', 'cocina regional La Rioja'],
 });
 
@@ -21,7 +21,7 @@ export default function GastronomiaPage() {
   const hero =
     images.find((i) => i.orientation === 'landscape')?.src ??
     images[0]?.src ??
-    '/images/mirador-atardecer-hd.png';
+    '/images/real/real-evento-mirador-noche.jpg';
 
   return (
     <div className="bg-brand-cream">

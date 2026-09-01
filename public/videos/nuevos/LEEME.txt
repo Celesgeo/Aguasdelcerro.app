@@ -1,0 +1,10 @@
+Subí acá tus videos de Aguas del Cerro.
+
+Formatos: .mp4 · .webm · .mov
+Recomendado: MP4, horizontal, mínimo 1280px de ancho.
+
+Cuando los copies, avisame en el chat y los integro al sitio
+(hero, galería, redes, etc.).
+
+También podés agregar más fotos en:
+public/images/nuevas/

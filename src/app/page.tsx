@@ -21,15 +21,15 @@ export default function HomePage() {
   const hero = getHeroMedia();
   const galleryImages = getGalleryImages();
   const termasImages = getImagesByCategory('termas');
-  const termasImage = termasImages[0]?.src ?? '/images/termas-colina-noche-hd.png';
-  const termasVip = termasImages.find((i) => i.filename.includes('vip'))?.src ?? '/images/termas-vip-deck-hd.png';
+  const termasImage = termasImages[0]?.src ?? '/images/real/real-termas-piletas.jpg';
+  const termasVip = termasImages[1]?.src ?? termasImages[0]?.src ?? '/images/real/real-termas-piletas.jpg';
   const miradorImage =
     getImagesByCategory('mirador').find((i) => i.orientation === 'landscape')?.src ??
-    '/images/mirador-atardecer-hd.png';
+    '/images/real/real-evento-mirador-noche.jpg';
   const experienceImage =
-    getImagesByCategory('atardeceres')[0]?.src ?? '/images/experiencia-atardecer-premium.png';
+    getImagesByCategory('atardeceres')[0]?.src ?? '/images/real/real-atardecer-montana.jpg';
   const landscapeImage =
-    getImagesByCategory('paisajes')[0]?.src ?? '/images/paisaje-cactus-luna-hd.png';
+    getImagesByCategory('naturaleza')[0]?.src ?? '/images/real/real-naturaleza-lechuza.jpg';
 
   return (
     <>

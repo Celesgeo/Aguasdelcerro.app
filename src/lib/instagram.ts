@@ -1,5 +1,5 @@
 import { SITE } from '@/lib/constants';
-import { getGalleryImages, getImagesByCategory, type MediaImage } from '@/lib/media';
+import { getGalleryImages, getImages, getImagesByCategory, type MediaImage } from '@/lib/media';
 
 export interface InstagramPost {
   id: string;
@@ -18,12 +18,15 @@ type InstagramFeed = {
 const REVALIDATE_SECONDS = 3600;
 
 function pickCuratedImages(limit: number): MediaImage[] {
+  const realImages = getImages().filter((img) => img.isReal && img.category !== 'logo');
+  if (realImages.length >= limit) return realImages.slice(0, limit);
+
   const pools = [
+    realImages,
     getImagesByCategory('termas'),
     getImagesByCategory('mirador'),
     getImagesByCategory('atardeceres'),
-    getImagesByCategory('paisajes'),
-    getImagesByCategory('restaurante'),
+    getImagesByCategory('naturaleza'),
     getGalleryImages(),
   ];
 
