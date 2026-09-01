@@ -45,12 +45,44 @@ function getSmtpConfig(): SmtpConfig | null {
   };
 }
 
+export type MailProvider = 'resend' | 'web3forms' | 'smtp';
+
 export function isMailConfigured(): boolean {
-  return Boolean(getWeb3FormsKey() || getResendKey() || getSmtpConfig());
+  return getActiveMailProvider() !== null;
 }
 
-function buildEmailContent(params: CareerEmailParams) {
+/** Proveedor que se usará al enviar (Resend prioriza adjuntos de CV). */
+export function getActiveMailProvider(): MailProvider | null {
+  if (getResendKey()) return 'resend';
+  if (getWeb3FormsKey()) return 'web3forms';
+  if (getSmtpConfig()) return 'smtp';
+  return null;
+}
+
+export function supportsCvEmailAttachment(): boolean {
+  const provider = getActiveMailProvider();
+  return provider === 'resend' || provider === 'smtp';
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function buildEmailContent(params: CareerEmailParams, options?: { cvAttached?: boolean }) {
   const puestoLabel = getCareerPositionLabel(params.puesto);
+  const cvSize = formatFileSize(params.cvBuffer.length);
+  const cvAttached = options?.cvAttached ?? true;
+
+  const cvLines = cvAttached
+    ? [`Archivo CV adjunto: ${params.cvFilename} (${cvSize})`]
+    : [
+        `Archivo CV subido en la web: ${params.cvFilename} (${cvSize})`,
+        'El CV no se adjunta en este email (plan gratuito del servicio).',
+        'Contactá al postulante por email o WhatsApp para solicitar el archivo.',
+      ];
+
   const textBody = [
     `Nueva postulación laboral — ${SITE.name}`,
     '',
@@ -60,9 +92,16 @@ function buildEmailContent(params: CareerEmailParams) {
     `Localidad: ${params.localidad}`,
     `Puesto: ${puestoLabel}`,
     '',
+    ...cvLines,
+    '',
     'Presentación / experiencia:',
     params.presentacion,
   ].join('\n');
+
+  const cvHtml = cvAttached
+    ? `<p><strong>Archivo CV adjunto:</strong> ${escapeHtml(params.cvFilename)} (${cvSize})</p>`
+    : `<p><strong>Archivo CV subido:</strong> ${escapeHtml(params.cvFilename)} (${cvSize})</p>
+       <p><em>El CV no viene adjunto en este email. Contactá al postulante para solicitarlo.</em></p>`;
 
   const htmlBody = `
     <h2>Nueva postulación laboral — ${SITE.name}</h2>
@@ -71,6 +110,7 @@ function buildEmailContent(params: CareerEmailParams) {
     <p><strong>Email:</strong> <a href="mailto:${escapeHtml(params.email)}">${escapeHtml(params.email)}</a></p>
     <p><strong>Localidad:</strong> ${escapeHtml(params.localidad)}</p>
     <p><strong>Puesto:</strong> ${escapeHtml(puestoLabel)}</p>
+    ${cvHtml}
     <p><strong>Presentación / experiencia:</strong></p>
     <p style="white-space:pre-wrap">${escapeHtml(params.presentacion)}</p>
   `;
@@ -84,9 +124,12 @@ function buildEmailContent(params: CareerEmailParams) {
   };
 }
 
-/** Recomendado en Railway: HTTPS, sin SMTP bloqueado. */
+/**
+ * Web3Forms gratuito: datos del formulario sí, adjuntos NO (feature PRO).
+ * No enviar `attachment` — rompe el envío en plan free.
+ */
 async function sendViaWeb3Forms(params: CareerEmailParams, accessKey: string): Promise<void> {
-  const { puestoLabel, subject, textBody } = buildEmailContent(params);
+  const { puestoLabel, subject, textBody } = buildEmailContent(params, { cvAttached: false });
 
   const body = new FormData();
   body.append('access_key', accessKey);
@@ -94,13 +137,12 @@ async function sendViaWeb3Forms(params: CareerEmailParams, accessKey: string): P
   body.append('from_name', SITE.name);
   body.append('name', params.nombre);
   body.append('email', params.email);
+  body.append('replyto', params.email);
   body.append('phone', params.telefono);
   body.append('localidad', params.localidad);
   body.append('puesto', puestoLabel);
   body.append('message', textBody);
-
-  const cvBlob = new Blob([new Uint8Array(params.cvBuffer)], { type: params.cvMimeType });
-  body.append('attachment', cvBlob, params.cvFilename);
+  body.append('botcheck', '');
 
   const response = await fetch('https://api.web3forms.com/submit', {
     method: 'POST',
@@ -199,15 +241,15 @@ async function sendViaSmtp(params: CareerEmailParams, config: SmtpConfig): Promi
 }
 
 export async function sendCareerApplicationEmail(params: CareerEmailParams): Promise<void> {
-  const web3Key = getWeb3FormsKey();
-  if (web3Key) {
-    await sendViaWeb3Forms(params, web3Key);
-    return;
-  }
-
   const resendKey = getResendKey();
   if (resendKey) {
     await sendViaResend(params, resendKey);
+    return;
+  }
+
+  const web3Key = getWeb3FormsKey();
+  if (web3Key) {
+    await sendViaWeb3Forms(params, web3Key);
     return;
   }
 
