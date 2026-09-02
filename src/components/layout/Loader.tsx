@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
+import { SITE_READY_EVENT } from '@/lib/site-audio';
 
 export default function Loader() {
   const pathname = usePathname();
@@ -14,7 +15,10 @@ export default function Loader() {
       setVisible(false);
       return;
     }
-    const timer = setTimeout(() => setVisible(false), 1800);
+    const timer = setTimeout(() => {
+      setVisible(false);
+      window.dispatchEvent(new Event(SITE_READY_EVENT));
+    }, 1800);
     return () => clearTimeout(timer);
   }, [pathname]);
 

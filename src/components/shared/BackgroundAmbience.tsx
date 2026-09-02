@@ -2,17 +2,17 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
-import { SITE_AMBIENT_TRACK, SITE_AMBIENT_VOLUME } from '@/lib/site-audio';
+import { SITE_AMBIENT_TRACK, SITE_AMBIENT_VOLUME, SITE_READY_EVENT } from '@/lib/site-audio';
 
-const FADE_MS = 3200;
-const FADE_STEP_MS = 80;
-const START_DELAY_MS = 2000;
+const FADE_MS = 2800;
+const FADE_STEP_MS = 70;
 
 export default function BackgroundAmbience() {
   const pathname = usePathname();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const fadeTimerRef = useRef<number | null>(null);
-  const startedRef = useRef(false);
+  const playingRef = useRef(false);
+  const audibleRef = useRef(false);
 
   const clearFade = useCallback(() => {
     if (fadeTimerRef.current !== null) {
@@ -45,72 +45,111 @@ export default function BackgroundAmbience() {
     [clearFade],
   );
 
-  const startPlayback = useCallback(async () => {
-    if (startedRef.current) return;
+  const revealSound = useCallback(async () => {
+    if (audibleRef.current) return;
+
     const audio = audioRef.current;
     if (!audio) return;
 
-    audio.volume = 0;
+    audio.muted = false;
     audio.loop = true;
+
+    if (!playingRef.current) {
+      audio.volume = 0;
+      try {
+        await audio.play();
+        playingRef.current = true;
+        audibleRef.current = true;
+        fadeTo(SITE_AMBIENT_VOLUME);
+      } catch {
+        /* Sin interacción suficiente aún. */
+      }
+      return;
+    }
+
+    audibleRef.current = true;
+    audio.volume = 0;
+    fadeTo(SITE_AMBIENT_VOLUME);
+  }, [fadeTo]);
+
+  const bootAmbience = useCallback(async () => {
+    const audio = audioRef.current;
+    if (!audio || audibleRef.current) return;
+
+    audio.loop = true;
+    audio.volume = 0;
+    audio.muted = false;
 
     try {
       await audio.play();
-      startedRef.current = true;
+      playingRef.current = true;
+      audibleRef.current = true;
       fadeTo(SITE_AMBIENT_VOLUME);
+      return;
     } catch {
-      /* El navegador bloqueó autoplay; se reintenta con la primera interacción. */
+      /* Autoplay con sonido bloqueado en Chrome/Edge/Firefox. */
+    }
+
+    try {
+      audio.muted = true;
+      await audio.play();
+      playingRef.current = true;
+    } catch {
+      /* Espera la primera interacción del visitante. */
     }
   }, [fadeTo]);
 
   useEffect(() => {
     if (pathname.startsWith('/admin')) return;
 
-    startedRef.current = false;
+    playingRef.current = false;
+    audibleRef.current = false;
+
     const audio = audioRef.current;
     if (audio) {
       audio.pause();
       audio.currentTime = 0;
+      audio.muted = false;
       audio.volume = 0;
     }
 
-    const tryStart = () => {
-      void startPlayback();
+    const onSiteReady = () => {
+      void bootAmbience();
     };
 
-    const delayTimer = window.setTimeout(tryStart, START_DELAY_MS);
-
-    const resumeOnInteraction = () => {
-      void startPlayback();
+    const onInteraction = () => {
+      void revealSound();
     };
 
-    window.addEventListener('pointerdown', resumeOnInteraction);
-    window.addEventListener('keydown', resumeOnInteraction);
-    window.addEventListener('scroll', resumeOnInteraction, { passive: true });
-    window.addEventListener('touchstart', resumeOnInteraction, { passive: true });
+    window.addEventListener(SITE_READY_EVENT, onSiteReady);
+    window.addEventListener('pointerdown', onInteraction);
+    window.addEventListener('keydown', onInteraction);
+    window.addEventListener('wheel', onInteraction, { passive: true });
+    window.addEventListener('scroll', onInteraction, { passive: true });
+    window.addEventListener('mousemove', onInteraction, { once: true });
+
+    const fallbackTimer = window.setTimeout(() => {
+      void bootAmbience();
+    }, 2600);
 
     return () => {
-      window.clearTimeout(delayTimer);
-      window.removeEventListener('pointerdown', resumeOnInteraction);
-      window.removeEventListener('keydown', resumeOnInteraction);
-      window.removeEventListener('scroll', resumeOnInteraction);
-      window.removeEventListener('touchstart', resumeOnInteraction);
+      window.clearTimeout(fallbackTimer);
+      window.removeEventListener(SITE_READY_EVENT, onSiteReady);
+      window.removeEventListener('pointerdown', onInteraction);
+      window.removeEventListener('keydown', onInteraction);
+      window.removeEventListener('wheel', onInteraction);
+      window.removeEventListener('scroll', onInteraction);
+      window.removeEventListener('mousemove', onInteraction);
       clearFade();
       if (audio) {
         audio.pause();
         audio.currentTime = 0;
+        audio.muted = false;
       }
     };
-  }, [pathname, startPlayback, clearFade]);
+  }, [pathname, bootAmbience, revealSound, clearFade]);
 
   if (pathname.startsWith('/admin')) return null;
 
-  return (
-    <audio
-      ref={audioRef}
-      src={SITE_AMBIENT_TRACK}
-      preload="auto"
-      aria-hidden
-      playsInline
-    />
-  );
+  return <audio ref={audioRef} src={SITE_AMBIENT_TRACK} preload="auto" aria-hidden />;
 }
