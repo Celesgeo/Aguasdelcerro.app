@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { COOKIE_NAME, verifyAdminSessionToken } from '@/lib/admin-auth';
 import { getCanonicalRedirectTarget, shouldNoindexHost } from '@/lib/site-url';
+import { sanitizeInternalPath } from '@/lib/safe-path';
 
 function applySeoHeaders(res: NextResponse, request: NextRequest): NextResponse {
   const host = request.headers.get('host') ?? '';
@@ -23,8 +24,12 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Proteger APIs admin (excepto login)
-  if (pathname.startsWith('/api/admin') && pathname !== '/api/admin/login') {
+  // Proteger APIs admin (excepto login y logout)
+  if (
+    pathname.startsWith('/api/admin') &&
+    pathname !== '/api/admin/login' &&
+    pathname !== '/api/admin/logout'
+  ) {
     const token = request.cookies.get(COOKIE_NAME)?.value;
     if (!(await verifyAdminSessionToken(token))) {
       return NextResponse.json({ ok: false, error: 'No autorizado' }, { status: 401 });
@@ -36,6 +41,7 @@ export async function middleware(request: NextRequest) {
   if (pathname.startsWith('/api')) {
     const res = NextResponse.next();
     res.headers.set('X-Robots-Tag', 'noindex, nofollow');
+    res.headers.set('X-Permitted-Cross-Domain-Policies', 'none');
     return applySeoHeaders(res, request);
   }
 
@@ -56,7 +62,7 @@ export async function middleware(request: NextRequest) {
   const token = request.cookies.get(COOKIE_NAME)?.value;
   if (!(await verifyAdminSessionToken(token))) {
     const loginUrl = new URL('/admin/login', request.url);
-    loginUrl.searchParams.set('next', pathname);
+    loginUrl.searchParams.set('next', sanitizeInternalPath(pathname));
     return NextResponse.redirect(loginUrl);
   }
 

@@ -1,6 +1,6 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 import type { MembershipTierId } from '@/lib/memberships';
 import { getMembershipById } from '@/lib/memberships';
 
@@ -96,7 +96,9 @@ async function ensureStore(): Promise<MembersStoreFile> {
     if (!Array.isArray(parsed.members)) throw new Error('invalid store');
     return parsed;
   } catch {
-    const initial: MembersStoreFile = { members: SEED };
+    const initial: MembersStoreFile = {
+      members: process.env.NODE_ENV === 'production' ? [] : SEED,
+    };
     await fs.mkdir(path.dirname(STORE_PATH), { recursive: true });
     await fs.writeFile(STORE_PATH, JSON.stringify(initial, null, 2), 'utf8');
     return initial;
@@ -113,8 +115,8 @@ function nowIso() {
 }
 
 function generateDownloadCode(existing: Set<string>): string {
-  for (let i = 0; i < 50; i++) {
-    const code = String(Math.floor(10000 + Math.random() * 90000));
+  for (let i = 0; i < 80; i++) {
+    const code = String(randomInt(10000, 100000));
     if (!existing.has(code)) return code;
   }
   throw new Error('No se pudo generar un código único');

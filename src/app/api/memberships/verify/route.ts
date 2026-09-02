@@ -1,12 +1,16 @@
 import { NextResponse } from 'next/server';
 import { findMemberByDownloadCode } from '@/lib/members-store';
 import { getMembershipById } from '@/lib/memberships';
-import { clientIp, rateLimit, sanitizeText } from '@/lib/security';
+import { clientIp, rateLimit, sanitizeText, uniformResponseDelay } from '@/lib/security';
+
+const GENERIC_ERROR = 'Código no encontrado o aún no habilitado.';
 
 export async function POST(request: Request) {
+  const startedAt = Date.now();
+
   try {
     const ip = clientIp(request);
-    const limited = rateLimit(`membership-verify:${ip}`, 20, 15 * 60 * 1000);
+    const limited = rateLimit(`membership-verify:${ip}`, 10, 15 * 60 * 1000);
     if (!limited.ok) {
       return NextResponse.json(
         { ok: false, error: 'Demasiados intentos. Probá más tarde.' },
@@ -18,18 +22,17 @@ export async function POST(request: Request) {
     const code = sanitizeText(body?.code, 5);
 
     if (!/^\d{5}$/.test(code)) {
+      await uniformResponseDelay(Math.max(0, 450 - (Date.now() - startedAt)));
       return NextResponse.json(
-        { ok: false, error: 'Ingresá un código válido de 5 dígitos.' },
-        { status: 400 },
+        { ok: false, error: GENERIC_ERROR },
+        { status: 404 },
       );
     }
 
     const member = await findMemberByDownloadCode(code);
     if (!member) {
-      return NextResponse.json(
-        { ok: false, error: 'Código no encontrado o aún no habilitado.' },
-        { status: 404 },
-      );
+      await uniformResponseDelay(Math.max(0, 450 - (Date.now() - startedAt)));
+      return NextResponse.json({ ok: false, error: GENERIC_ERROR }, { status: 404 });
     }
 
     const tier = getMembershipById(member.membershipId);
@@ -48,6 +51,7 @@ export async function POST(request: Request) {
       },
     });
   } catch {
-    return NextResponse.json({ ok: false, error: 'No se pudo validar el código.' }, { status: 500 });
+    await uniformResponseDelay(Math.max(0, 450 - (Date.now() - startedAt)));
+    return NextResponse.json({ ok: false, error: GENERIC_ERROR }, { status: 404 });
   }
 }

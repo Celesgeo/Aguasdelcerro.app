@@ -40,9 +40,31 @@ export function rateLimit(
 }
 
 export function clientIp(request: Request): string {
+  const realIp = request.headers.get('x-real-ip')?.trim();
+  if (realIp) return realIp;
+
   const forwarded = request.headers.get('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0]?.trim() || 'unknown';
-  return request.headers.get('x-real-ip') || 'unknown';
+  if (forwarded) {
+    const hops = forwarded
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean);
+    // Último hop = IP añadida por el proxy de confianza (Railway/Vercel).
+    return hops[hops.length - 1] ?? 'unknown';
+  }
+
+  return 'unknown';
+}
+
+/** Nombre seguro para adjuntos de email. */
+export function sanitizeAttachmentFilename(name: string, fallback = 'cv.pdf'): string {
+  const base = name.split(/[/\\]/).pop() ?? fallback;
+  const cleaned = base.replace(/[^\w.\- ()áéíóúÁÉÍÓÚñÑ]/g, '_').slice(0, 120);
+  return cleaned || fallback;
+}
+
+export async function uniformResponseDelay(minMs = 450): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, minMs));
 }
 
 export function sanitizeText(value: unknown, maxLen = 200): string {

@@ -6,7 +6,7 @@ import {
   createAdminSessionToken,
   getAdminCredentials,
 } from '@/lib/admin-auth';
-import { clientIp, rateLimit, safeEqualString, sanitizeText } from '@/lib/security';
+import { clientIp, rateLimit, safeEqualString, sanitizeText, uniformResponseDelay } from '@/lib/security';
 
 export async function POST(request: NextRequest) {
   try {
@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
     const userOk = safeEqualString(username, creds.username);
     const passOk = safeEqualString(password, creds.password);
     if (!userOk || !passOk) {
+      await uniformResponseDelay();
       return NextResponse.json({ ok: false, error: 'Usuario o contraseña incorrectos' }, { status: 401 });
     }
 

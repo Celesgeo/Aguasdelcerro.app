@@ -8,7 +8,19 @@ const securityHeaders = [
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   {
     key: 'Permissions-Policy',
-    value: 'camera=(), microphone=(), geolocation=(), payment=()',
+    value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=()',
+  },
+  {
+    key: 'Cross-Origin-Opener-Policy',
+    value: 'same-origin',
+  },
+  {
+    key: 'X-Permitted-Cross-Domain-Policies',
+    value: 'none',
+  },
+  {
+    key: 'X-Download-Options',
+    value: 'noopen',
   },
   {
     key: 'Content-Security-Policy',
@@ -18,7 +30,7 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https:",
       "font-src 'self' data:",
-      "connect-src 'self' https://api.open-meteo.com https://wa.me https://api.whatsapp.com",
+      "connect-src 'self' https://api.open-meteo.com https://api.resend.com https://api.web3forms.com https://wa.me https://api.whatsapp.com",
       "frame-src 'self' https://maps.google.com https://www.google.com",
       "base-uri 'self'",
       "form-action 'self' https://wa.me",

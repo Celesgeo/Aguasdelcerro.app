@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import { SITE } from '@/lib/constants';
 import { getCareerPositionLabel, type CareerPosition } from '@/lib/careers';
+import { sanitizeAttachmentFilename } from '@/lib/security';
 
 export type CareerEmailParams = {
   nombre: string;
@@ -157,6 +158,7 @@ async function sendViaWeb3Forms(params: CareerEmailParams, accessKey: string): P
 
 async function sendViaResend(params: CareerEmailParams, apiKey: string): Promise<void> {
   const { to, subject, htmlBody, textBody } = buildEmailContent(params);
+  const safeFilename = sanitizeAttachmentFilename(params.cvFilename);
   const from =
     process.env.RESEND_FROM?.trim() ||
     process.env.SMTP_FROM?.trim() ||
@@ -177,7 +179,7 @@ async function sendViaResend(params: CareerEmailParams, apiKey: string): Promise
       text: textBody,
       attachments: [
         {
-          filename: params.cvFilename,
+          filename: safeFilename,
           content: params.cvBuffer.toString('base64'),
         },
       ],
@@ -192,6 +194,7 @@ async function sendViaResend(params: CareerEmailParams, apiKey: string): Promise
 
 async function sendViaSmtp(params: CareerEmailParams, config: SmtpConfig): Promise<void> {
   const { to, subject, textBody, htmlBody } = buildEmailContent(params);
+  const safeFilename = sanitizeAttachmentFilename(params.cvFilename);
   const from = process.env.SMTP_FROM?.trim() || config.auth.user;
 
   const attempts: Array<{ port: number; secure: boolean; requireTLS?: boolean }> =
@@ -223,7 +226,7 @@ async function sendViaSmtp(params: CareerEmailParams, config: SmtpConfig): Promi
         html: htmlBody,
         attachments: [
           {
-            filename: params.cvFilename,
+            filename: safeFilename,
             content: params.cvBuffer,
             contentType: params.cvMimeType,
           },

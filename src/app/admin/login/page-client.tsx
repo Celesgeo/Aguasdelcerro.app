@@ -4,6 +4,7 @@ import { FormEvent, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { SITE } from '@/lib/constants';
+import { sanitizeInternalPath } from '@/lib/safe-path';
 
 export default function AdminLoginClient() {
   const router = useRouter();
@@ -28,7 +29,7 @@ export default function AdminLoginClient() {
         setError(data.error || 'No se pudo ingresar');
         return;
       }
-      router.replace(search.get('next') || '/admin');
+      router.replace(sanitizeInternalPath(search.get('next')));
       router.refresh();
     } catch {
       setError('Error de conexión');

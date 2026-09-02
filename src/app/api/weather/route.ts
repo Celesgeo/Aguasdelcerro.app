@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { SITE } from '@/lib/constants';
+import { clientIp, rateLimit } from '@/lib/security';
 
 /** WMO weather interpretation codes → Spanish labels */
 const WMO_ES: Record<number, string> = {
@@ -39,7 +40,16 @@ function formatLocalTime(iso: string): string {
   return time.slice(0, 5);
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const ip = clientIp(request);
+  const limited = rateLimit(`weather:${ip}`, 60, 60 * 1000);
+  if (!limited.ok) {
+    return NextResponse.json(
+      { temp: 22, description: 'Sin datos en vivo', sunrise: '--:--', sunset: '--:--', location: 'La Rioja, Argentina' },
+      { status: 200, headers: { 'Retry-After': String(limited.retryAfterSec) } },
+    );
+  }
+
   const { lat, lng } = SITE.coordinates;
   const url = new URL('https://api.open-meteo.com/v1/forecast');
   url.searchParams.set('latitude', String(lat));
