@@ -1,0 +1,7 @@
+/** Ambiente sonoro del sitio — pista suave en loop. */
+export const SITE_AMBIENT_TRACK = '/audio/ambient-aguas.mp3';
+
+/** Volumen máximo percibido (0–1). Mantener bajo para no competir con la experiencia. */
+export const SITE_AMBIENT_VOLUME = 0.22;
+
+export const SITE_AMBIENT_STORAGE_KEY = 'aguas-ambience-enabled';

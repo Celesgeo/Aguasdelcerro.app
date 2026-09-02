@@ -5,6 +5,7 @@ import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import Loader from '@/components/layout/Loader';
 import WhatsAppFloat from '@/components/shared/WhatsAppFloat';
+import BackgroundAmbience from '@/components/shared/BackgroundAmbience';
 import JsonLd from '@/components/seo/JsonLd';
 import {
   createRootMetadata,
@@ -58,6 +59,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <main className="flex-1">{children}</main>
         <Footer />
         <WhatsAppFloat />
+        <BackgroundAmbience />
       </body>
     </html>
   );
