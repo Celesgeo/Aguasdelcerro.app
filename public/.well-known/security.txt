@@ -1,0 +1,6 @@
+Contact: mailto:contacto@aguasdelcerro.net
+Preferred-Languages: es, en
+Policy: https://www.aguasdelcerro.com.ar/contacto
+
+# Reportá vulnerabilidades de forma responsable.
+# No realizar pruebas intrusivas en producción sin autorización.

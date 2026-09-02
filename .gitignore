@@ -34,7 +34,7 @@ yarn-error.log*
 .pnpm-debug.log*
 *.log
 
-# environment & secrets — NUNCA subir al repo
+# environment & secrets — NUNCA subir al repo ni dejar en public/
 .env
 .env.*
 !.env.example
@@ -43,7 +43,8 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 
-# datos de socios / panel admin
+# datos de socios / panel admin — nunca servir como estático
+/data/
 /data/*.json
 !/data/.gitkeep
 

@@ -1,4 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
+import { clientIp } from '@/lib/request-ip';
+
+export { clientIp };
 
 /** Comparación en tiempo constante para strings (Node runtime). */
 export function safeEqualString(a: string, b: string): boolean {
@@ -37,23 +40,6 @@ export function rateLimit(
   current.count += 1;
   buckets.set(key, current);
   return { ok: true, retryAfterSec: 0 };
-}
-
-export function clientIp(request: Request): string {
-  const realIp = request.headers.get('x-real-ip')?.trim();
-  if (realIp) return realIp;
-
-  const forwarded = request.headers.get('x-forwarded-for');
-  if (forwarded) {
-    const hops = forwarded
-      .split(',')
-      .map((part) => part.trim())
-      .filter(Boolean);
-    // Último hop = IP añadida por el proxy de confianza (Railway/Vercel).
-    return hops[hops.length - 1] ?? 'unknown';
-  }
-
-  return 'unknown';
 }
 
 /** Nombre seguro para adjuntos de email. */

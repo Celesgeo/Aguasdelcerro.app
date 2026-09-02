@@ -30,6 +30,8 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https:",
       "font-src 'self' data:",
+      "media-src 'self' blob:",
+      "worker-src 'self' blob:",
       "connect-src 'self' https://api.open-meteo.com https://api.resend.com https://api.web3forms.com https://wa.me https://api.whatsapp.com",
       "frame-src 'self' https://maps.google.com https://www.google.com",
       "base-uri 'self'",
@@ -44,6 +46,8 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   output: 'standalone',
   poweredByHeader: false,
+  productionBrowserSourceMaps: false,
+  reactStrictMode: true,
   turbopack: {
     root: process.cwd(),
   },
