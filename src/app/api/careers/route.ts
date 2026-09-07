@@ -17,7 +17,7 @@ import { clientIp, rateLimit, sanitizeText } from '@/lib/security';
 
 export const maxDuration = 60;
 
-const MIN_FORM_SECONDS = 3;
+const MIN_FORM_SECONDS = 0;
 
 export async function POST(request: Request) {
   try {

@@ -247,30 +247,39 @@ async function sendViaResend(params: CareerEmailParams, apiKey: string, from: st
  */
 async function sendViaFormSubmit(params: CareerEmailParams): Promise<void> {
   const { to, subject, textBody } = buildEmailContent(params, { cvAttached: false });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
 
-  const response = await fetch(`https://formsubmit.co/ajax/${to}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    },
-    body: JSON.stringify({
-      name: params.nombre,
-      email: params.email,
-      phone: params.telefono,
-      localidad: params.localidad,
-      puesto: getCareerPositionLabel(params.puesto),
-      _subject: subject,
-      message: textBody,
-      _template: 'table',
-      _captcha: 'false',
-    }),
-  });
+  try {
+    const response = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(to)}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Origin: SITE_ORIGIN,
+        Referer: `${SITE_ORIGIN}/trabaja-con-nosotros`,
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        name: params.nombre,
+        email: params.email,
+        phone: params.telefono,
+        localidad: params.localidad,
+        puesto: getCareerPositionLabel(params.puesto),
+        _subject: subject,
+        message: textBody,
+        _template: 'table',
+        _captcha: 'false',
+      }),
+    });
 
-  const result = await readJson(response);
-  const success = result?.success === true || result?.success === 'true';
-  if (!response.ok || !success) {
-    throw new Error(String(result?.message ?? `FormSubmit rechazó el envío (${response.status})`));
+    const result = await readJson(response);
+    const success = result?.success === true || result?.success === 'true';
+    if (!response.ok || !success) {
+      throw new Error(String(result?.message ?? `FormSubmit rechazó el envío (${response.status})`));
+    }
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -294,9 +303,9 @@ async function sendViaSmtp(params: CareerEmailParams, config: SmtpConfig): Promi
       secure: attempt.secure,
       auth: config.auth,
       family: 4,
-      connectionTimeout: 12_000,
-      greetingTimeout: 12_000,
-      socketTimeout: 20_000,
+      connectionTimeout: 4_000,
+      greetingTimeout: 4_000,
+      socketTimeout: 8_000,
       requireTLS: Boolean(attempt.requireTLS),
       tls: { minVersion: 'TLSv1.2' },
     } as nodemailer.TransportOptions);
@@ -361,19 +370,14 @@ async function tryResend(params: CareerEmailParams, errors: string[]): Promise<b
 export async function sendCareerApplicationEmail(params: CareerEmailParams): Promise<void> {
   const errors: string[] = [];
 
-  const smtp = getSmtpConfig();
-  if (smtp) {
-    try {
-      await sendViaSmtp(params, smtp);
-      return;
-    } catch (error) {
-      const message = errorMessage(error);
-      console.error('[mail] SMTP falló:', message);
-      errors.push(`smtp: ${message}`);
-    }
+  try {
+    await sendViaFormSubmit(params);
+    return;
+  } catch (error) {
+    const message = errorMessage(error);
+    console.error('[mail] FormSubmit falló:', message);
+    errors.push(`formsubmit: ${message}`);
   }
-
-  if (await tryResend(params, errors)) return;
 
   const web3Key = getWeb3FormsKey();
   if (web3Key) {
@@ -387,14 +391,19 @@ export async function sendCareerApplicationEmail(params: CareerEmailParams): Pro
     }
   }
 
-  try {
-    await sendViaFormSubmit(params);
-    return;
-  } catch (error) {
-    const message = errorMessage(error);
-    console.error('[mail] FormSubmit falló:', message);
-    errors.push(`formsubmit: ${message}`);
+  const smtp = getSmtpConfig();
+  if (smtp) {
+    try {
+      await sendViaSmtp(params, smtp);
+      return;
+    } catch (error) {
+      const message = errorMessage(error);
+      console.error('[mail] SMTP falló:', message);
+      errors.push(`smtp: ${message}`);
+    }
   }
+
+  if (await tryResend(params, errors)) return;
 
   throw new Error(errors.length ? errors.join(' | ') : 'Email no configurado');
 }

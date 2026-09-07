@@ -42,15 +42,15 @@ export function getPublicCareersNotifyEmail(): string {
 
 export function explainCareersMailError(raw: string): string {
   if (/activat|confirm your|check your email|inbox|activar/i.test(raw)) {
-    return 'Hay que activar el envío. Abrí Gmail (celesteorellano14@gmail.com) y tocá el enlace de FormSubmit. Es un solo clic. Después volvé a enviar la postulación.';
+    return 'Hay que activar el envío. En Gmail (celesteorellano14@gmail.com, y en spam) buscá FormSubmit y tocá el enlace. Un clic, y después se pueden enviar de nuevo.';
   }
   if (/quota exceeded|daily quota/i.test(raw)) {
-    return 'El servicio de mail llegó al límite del día. Activá FormSubmit desde Gmail y volvé a intentar.';
+    return 'El servicio de mail llegó al límite del día. Probá de nuevo en unos minutos.';
   }
-  if (/econnrefused|etimedout|ehlo|invalid login|authentication/i.test(raw)) {
-    return 'No se pudo enviar al correo. Revisá Gmail: FormSubmit te puede haber mandado un enlace para activar el formulario.';
+  if (/econnrefused|etimedout|ehlo|invalid login|authentication|abort/i.test(raw)) {
+    return 'No se pudo conectar al correo. En Gmail buscá el mail de FormSubmit y tocá activar.';
   }
-  return 'No se pudo enviar la postulación. Esperá un momento e intentá de nuevo.';
+  return 'No se pudo enviar la postulación. Intentá de nuevo; si se repite, escribinos por WhatsApp.';
 }
 
 export function isValidCareerPosition(value: string): value is CareerPosition {
