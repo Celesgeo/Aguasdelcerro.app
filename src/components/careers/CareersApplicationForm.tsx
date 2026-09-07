@@ -8,9 +8,12 @@ import {
   CAREERS_POSITIONS,
   CV_ALLOWED_EXTENSIONS,
   CV_MAX_BYTES,
+  getCareerPositionLabel,
   getFileExtension,
+  getPublicCareersNotifyEmail,
   isAllowedCvExtension,
 } from '@/lib/careers';
+import { SITE } from '@/lib/constants';
 
 interface CareersFormData {
   nombre: string;
@@ -36,6 +39,103 @@ function validateCvFile(file: File | undefined): string | true {
   }
 
   return true;
+}
+
+type FormSubmitResult = { success?: boolean | string; message?: string };
+
+function isFormSubmitOk(result: FormSubmitResult | null): boolean {
+  return result?.success === true || result?.success === 'true';
+}
+
+function buildApplicationMessage(data: CareersFormData, puestoLabel: string, cvName: string): string {
+  return [
+    `Nueva postulación laboral — ${SITE.name}`,
+    '',
+    `Nombre: ${data.nombre}`,
+    `Teléfono: ${data.telefono}`,
+    `Email: ${data.email}`,
+    `Localidad: ${data.localidad}`,
+    `Puesto: ${puestoLabel}`,
+    `Archivo CV: ${cvName}`,
+    '',
+    'Presentación / experiencia:',
+    data.presentacion,
+  ].join('\n');
+}
+
+async function submitViaFormSubmit(
+  data: CareersFormData,
+  cvFile: File,
+  includeCv: boolean,
+): Promise<boolean> {
+  const puestoLabel = getCareerPositionLabel(data.puesto);
+  const body = new FormData();
+  body.append('name', data.nombre);
+  body.append('email', data.email);
+  body.append('phone', data.telefono);
+  body.append('localidad', data.localidad);
+  body.append('puesto', puestoLabel);
+  body.append('message', buildApplicationMessage(data, puestoLabel, cvFile.name));
+  body.append('_subject', `[Postulación] ${puestoLabel} — ${data.nombre}`);
+  body.append('_template', 'table');
+  body.append('_captcha', 'false');
+  if (includeCv) {
+    body.append('attachment', cvFile, cvFile.name);
+  }
+
+  const response = await fetch(
+    `https://formsubmit.co/ajax/${encodeURIComponent(getPublicCareersNotifyEmail())}`,
+    { method: 'POST', headers: { Accept: 'application/json' }, body },
+  );
+  const result = (await response.json().catch(() => null)) as FormSubmitResult | null;
+  return isFormSubmitOk(result);
+}
+
+async function submitViaCareersApi(
+  data: CareersFormData,
+  cvFile: File,
+  startedAt: number,
+): Promise<boolean> {
+  const body = new FormData();
+  body.append('nombre', data.nombre);
+  body.append('telefono', data.telefono);
+  body.append('email', data.email);
+  body.append('localidad', data.localidad);
+  body.append('puesto', data.puesto);
+  body.append('presentacion', data.presentacion);
+  body.append('_gotcha', data._gotcha ?? '');
+  body.append('_startedAt', String(startedAt));
+  body.append('cv', cvFile);
+
+  const response = await fetch('/api/careers', { method: 'POST', body });
+  const result = (await response.json().catch(() => null)) as { ok?: boolean } | null;
+  return Boolean(result?.ok);
+}
+
+async function submitCareerForm(
+  data: CareersFormData,
+  cvFile: File,
+  startedAt: number,
+): Promise<boolean> {
+  if (data._gotcha) return true;
+
+  try {
+    if (await submitViaFormSubmit(data, cvFile, true)) return true;
+  } catch {
+    // FormSubmit con adjunto puede fallar en el plan free; reintentamos sin archivo.
+  }
+
+  try {
+    if (await submitViaFormSubmit(data, cvFile, false)) return true;
+  } catch {
+    // Sigue el respaldo del servidor, sin Resend.
+  }
+
+  try {
+    return await submitViaCareersApi(data, cvFile, startedAt);
+  } catch {
+    return false;
+  }
 }
 
 function CareersFormFields({ onSuccess }: { onSuccess: (message: string) => void }) {
@@ -87,28 +187,14 @@ function CareersFormFields({ onSuccess }: { onSuccess: (message: string) => void
     setIsSubmitting(true);
 
     try {
-      const body = new FormData();
-      body.append('nombre', data.nombre);
-      body.append('telefono', data.telefono);
-      body.append('email', data.email);
-      body.append('localidad', data.localidad);
-      body.append('puesto', data.puesto);
-      body.append('presentacion', data.presentacion);
-      body.append('_gotcha', data._gotcha ?? '');
-      body.append('_startedAt', String(startedAt));
-      body.append('cv', cvFile!);
-
-      const response = await fetch('/api/careers', { method: 'POST', body });
-      const result = (await response.json()) as { ok: boolean; error?: string; message?: string };
-
-      if (!response.ok || !result.ok) {
-        setSubmitError(result.error ?? 'No se pudo enviar la postulación.');
+      const sent = await submitCareerForm(data, cvFile!, startedAt);
+      if (!sent) {
+        setSubmitError('No se pudo enviar la postulación. Esperá un momento e intentá de nuevo.');
         return;
       }
 
       onSuccess(
-        result.message ??
-          '¡Gracias! Recibimos tu postulación. Nos contactaremos si tu perfil encaja con la búsqueda.',
+        '¡Gracias! Recibimos tu postulación. Nos contactaremos si tu perfil encaja con la búsqueda.',
       );
     } catch {
       setSubmitError('Error de conexión. Verificá tu internet e intentá de nuevo.');

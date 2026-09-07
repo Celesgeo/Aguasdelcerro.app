@@ -72,11 +72,10 @@ export function isMailConfigured(): boolean {
   return getActiveMailProvider() !== null;
 }
 
-/** Primer proveedor que se intenta. Resend free no va primero: su cuota diaria tumba el formulario. */
+/** Primer proveedor que se intenta. Resend free no se usa: su cuota diaria tumba el formulario. */
 export function getActiveMailProvider(): MailProvider | null {
   if (getWeb3FormsKey()) return 'web3forms';
   if (getSmtpConfig()) return 'smtp';
-  if (getResendKey() && !isResendQuotaBlocked()) return 'resend';
   return 'formsubmit';
 }
 
@@ -374,8 +373,6 @@ export async function sendCareerApplicationEmail(params: CareerEmailParams): Pro
       errors.push(`smtp: ${message}`);
     }
   }
-
-  if (await tryResend(params, errors)) return;
 
   throw new Error(errors.length ? errors.join(' | ') : 'Email no configurado');
 }

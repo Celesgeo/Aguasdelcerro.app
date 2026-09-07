@@ -1,3 +1,5 @@
+import { SITE } from '@/lib/constants';
+
 export const CAREERS_POSITIONS = [
   { value: 'cocinero', label: 'Cocinero/a' },
   { value: 'mozo', label: 'Mozo/a' },
@@ -24,6 +26,11 @@ const CV_EXTENSION_SET = new Set(CV_ALLOWED_EXTENSIONS);
 
 export function getCareerPositionLabel(value: string): string {
   return CAREERS_POSITIONS.find((p) => p.value === value)?.label ?? value;
+}
+
+/** Destino público del formulario (FormSubmit). No usa Resend. */
+export function getPublicCareersNotifyEmail(): string {
+  return process.env.NEXT_PUBLIC_CAREERS_NOTIFY_EMAIL?.trim() || SITE.email;
 }
 
 export function isValidCareerPosition(value: string): value is CareerPosition {
