@@ -8,6 +8,7 @@ import {
   isValidEmail,
   isValidPhone,
   matchesCvMagicBytes,
+  explainCareersMailError,
   type CareerPosition,
 } from '@/lib/careers';
 import { saveCareerApplication } from '@/lib/careers-store';
@@ -155,9 +156,10 @@ export async function POST(request: Request) {
       message: '¡Gracias! Recibimos tu postulación. Nos contactaremos si tu perfil encaja con la búsqueda.',
     });
   } catch (error) {
-    console.error('[careers] postulación fallida:', error);
+    const raw = error instanceof Error ? error.message : String(error);
+    console.error('[careers] postulación fallida:', raw);
     return NextResponse.json(
-      { ok: false, error: 'No se pudo enviar la postulación. Esperá un momento e intentá de nuevo.' },
+      { ok: false, error: explainCareersMailError(raw) },
       { status: 500 },
     );
   }

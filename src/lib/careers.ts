@@ -33,6 +33,19 @@ export function getPublicCareersNotifyEmail(): string {
   return process.env.NEXT_PUBLIC_CAREERS_NOTIFY_EMAIL?.trim() || SITE.email;
 }
 
+export function explainCareersMailError(raw: string): string {
+  if (/activat|confirm your|check your email|inbox|activar/i.test(raw)) {
+    return 'Hay que activar el envío. Abrí el mail de FormSubmit en contacto@aguasdelcerro.net (y en spam) y tocá el enlace. Es un solo clic, de tu lado; los postulantes no ven esa pantalla.';
+  }
+  if (/quota exceeded|daily quota/i.test(raw)) {
+    return 'El servicio de mail llegó al límite del día. Probá de nuevo mañana o activá FormSubmit desde el mail de contacto@.';
+  }
+  if (/econnrefused|etimedout|ehlo|invalid login|authentication/i.test(raw)) {
+    return 'No se pudo conectar al correo. Revisá en Railway las variables SMTP_USER y SMTP_PASS, o activá FormSubmit desde el mail de contacto@.';
+  }
+  return 'No se pudo enviar la postulación. Esperá un momento e intentá de nuevo.';
+}
+
 export function isValidCareerPosition(value: string): value is CareerPosition {
   return CAREERS_POSITIONS.some((p) => p.value === value);
 }
