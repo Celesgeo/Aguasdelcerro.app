@@ -21,7 +21,7 @@ const MIN_FORM_SECONDS = 3;
 export async function POST(request: Request) {
   try {
     const ip = clientIp(request);
-    const limited = rateLimit(`careers:${ip}`, 5, 60 * 60 * 1000);
+    const limited = rateLimit(`careers:${ip}`, 20, 60 * 60 * 1000);
     if (!limited.ok) {
       return NextResponse.json(
         { ok: false, error: 'Demasiados intentos. Probá más tarde.' },
@@ -75,39 +75,45 @@ export async function POST(request: Request) {
     }
 
     const cvEntry = formData.get('cv');
-    if (!(cvEntry instanceof File) || cvEntry.size === 0) {
-      return NextResponse.json({ ok: false, error: 'Adjuntá tu CV.' }, { status: 400 });
-    }
+    const hasCv = cvEntry instanceof File && cvEntry.size > 0;
+    let buffer = Buffer.alloc(0);
+    let ext = '';
+    let mime = 'application/octet-stream';
+    let cvOriginalName = 'sin-cv';
 
-    if (cvEntry.size > CV_MAX_BYTES) {
-      return NextResponse.json(
-        { ok: false, error: 'El archivo supera el límite de 5 MB.' },
-        { status: 400 },
-      );
-    }
+    if (hasCv) {
+      if (cvEntry.size > CV_MAX_BYTES) {
+        return NextResponse.json(
+          { ok: false, error: 'El archivo supera el límite de 5 MB.' },
+          { status: 400 },
+        );
+      }
 
-    const ext = getFileExtension(cvEntry.name);
-    if (!isAllowedCvExtension(ext)) {
-      return NextResponse.json(
-        { ok: false, error: 'Formato no permitido. Usá PDF, Word (.doc/.docx) o imagen (JPG, PNG, WEBP).' },
-        { status: 400 },
-      );
-    }
+      ext = getFileExtension(cvEntry.name);
+      if (!isAllowedCvExtension(ext)) {
+        return NextResponse.json(
+          { ok: false, error: 'Formato no permitido. Usá PDF, Word (.doc/.docx) o imagen (JPG, PNG, WEBP).' },
+          { status: 400 },
+        );
+      }
 
-    const mime = cvEntry.type || 'application/octet-stream';
-    if (mime !== 'application/octet-stream' && !CV_ALLOWED_MIME_TYPES.has(mime)) {
-      return NextResponse.json(
-        { ok: false, error: 'Tipo de archivo no permitido.' },
-        { status: 400 },
-      );
-    }
+      mime = cvEntry.type || 'application/octet-stream';
+      if (mime !== 'application/octet-stream' && !CV_ALLOWED_MIME_TYPES.has(mime)) {
+        return NextResponse.json(
+          { ok: false, error: 'Tipo de archivo no permitido.' },
+          { status: 400 },
+        );
+      }
 
-    const buffer = Buffer.from(await cvEntry.arrayBuffer());
-    if (!matchesCvMagicBytes(buffer, ext)) {
-      return NextResponse.json(
-        { ok: false, error: 'El archivo no coincide con el formato indicado.' },
-        { status: 400 },
-      );
+      buffer = Buffer.from(await cvEntry.arrayBuffer());
+      if (!matchesCvMagicBytes(buffer, ext)) {
+        return NextResponse.json(
+          { ok: false, error: 'El archivo no coincide con el formato indicado.' },
+          { status: 400 },
+        );
+      }
+
+      cvOriginalName = cvEntry.name.slice(0, 200);
     }
 
     if (!isMailConfigured()) {
@@ -117,7 +123,6 @@ export async function POST(request: Request) {
       );
     }
 
-    const cvOriginalName = cvEntry.name.slice(0, 200);
     const applicationData = {
       nombre,
       telefono,
@@ -126,7 +131,7 @@ export async function POST(request: Request) {
       puesto: puesto as CareerPosition,
       presentacion,
       cvOriginalName,
-      cvSize: cvEntry.size,
+      cvSize: buffer.length,
       cvMimeType: mime,
       ip,
     };
@@ -138,7 +143,9 @@ export async function POST(request: Request) {
     });
 
     try {
-      await saveCareerApplication(applicationData, buffer, ext);
+      if (hasCv) {
+        await saveCareerApplication(applicationData, buffer, ext);
+      }
     } catch {
       // El email ya salió; el backup en disco es opcional en producción efímera.
     }

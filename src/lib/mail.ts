@@ -224,41 +224,36 @@ async function sendViaResend(params: CareerEmailParams, apiKey: string, from: st
 }
 
 /**
- * HTTPS de respaldo. FormSubmit adjunta archivos solo con multipart, no con JSON/AJAX.
+ * FormSubmit AJAX: datos sí, archivos no. No redirige al postulante.
  */
 async function sendViaFormSubmit(params: CareerEmailParams): Promise<void> {
-  const { to, subject, textBody } = buildEmailContent(params, { cvAttached: true });
-  const filename = cvAttachmentFilename(params);
-  const body = new FormData();
-  body.append('name', params.nombre);
-  body.append('email', params.email);
-  body.append('phone', params.telefono);
-  body.append('localidad', params.localidad);
-  body.append('puesto', getCareerPositionLabel(params.puesto));
-  body.append('message', textBody);
-  body.append('_subject', subject);
-  body.append('_template', 'table');
-  body.append('_captcha', 'false');
-  body.append(
-    'attachment',
-    new Blob([new Uint8Array(params.cvBuffer)], {
-      type: params.cvMimeType || 'application/octet-stream',
-    }),
-    filename,
-  );
+  const { to, subject, textBody } = buildEmailContent(params, { cvAttached: false });
 
-  const response = await fetch(`https://formsubmit.co/${encodeURIComponent(to)}`, {
+  const response = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(to)}`, {
     method: 'POST',
     headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
       Origin: SITE_ORIGIN,
       Referer: `${SITE_ORIGIN}/trabaja-con-nosotros`,
     },
-    body,
-    redirect: 'manual',
+    body: JSON.stringify({
+      name: params.nombre,
+      email: params.email,
+      phone: params.telefono,
+      localidad: params.localidad,
+      puesto: getCareerPositionLabel(params.puesto),
+      _subject: subject,
+      message: textBody,
+      _template: 'table',
+      _captcha: 'false',
+    }),
   });
 
-  if (response.status >= 400) {
-    throw new Error(`FormSubmit rechazó el envío (${response.status})`);
+  const result = await readJson(response);
+  const success = result?.success === true || result?.success === 'true';
+  if (!response.ok || !success) {
+    throw new Error(String(result?.message ?? `FormSubmit rechazó el envío (${response.status})`));
   }
 }
 
