@@ -42,10 +42,13 @@ export function rateLimit(
   return { ok: true, retryAfterSec: 0 };
 }
 
-/** Nombre seguro para adjuntos de email. */
+/** Nombre seguro para adjuntos de email (ASCII, una sola extensión). */
 export function sanitizeAttachmentFilename(name: string, fallback = 'cv.pdf'): string {
   const base = name.split(/[/\\]/).pop() ?? fallback;
-  const cleaned = base.replace(/[^\w.\- ()áéíóúÁÉÍÓÚñÑ]/g, '_').slice(0, 120);
+  const dot = base.lastIndexOf('.');
+  const ext = dot > 0 ? base.slice(dot).toLowerCase().replace(/[^a-z0-9.]/g, '') : '';
+  const stem = (dot > 0 ? base.slice(0, dot) : base).replace(/[^\w.\-]/g, '_').replace(/_+/g, '_');
+  const cleaned = `${stem.slice(0, 80)}${ext}`.replace(/^\.+/, '');
   return cleaned || fallback;
 }
 

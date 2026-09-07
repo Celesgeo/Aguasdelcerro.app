@@ -14,6 +14,8 @@ import { saveCareerApplication } from '@/lib/careers-store';
 import { isMailConfigured, sendCareerApplicationEmail } from '@/lib/mail';
 import { clientIp, rateLimit, sanitizeText } from '@/lib/security';
 
+export const maxDuration = 60;
+
 const MIN_FORM_SECONDS = 3;
 
 export async function POST(request: Request) {
@@ -110,7 +112,7 @@ export async function POST(request: Request) {
 
     if (!isMailConfigured()) {
       return NextResponse.json(
-        { ok: false, error: 'El envío por email no está disponible. Contactanos por WhatsApp.' },
+        { ok: false, error: 'El envío por email no está disponible. Intentá de nuevo en unos minutos.' },
         { status: 503 },
       );
     }
@@ -148,7 +150,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('[careers] postulación fallida:', error);
     return NextResponse.json(
-      { ok: false, error: 'No se pudo enviar la postulación. Intentá de nuevo o escribinos por WhatsApp.' },
+      { ok: false, error: 'No se pudo enviar la postulación. Esperá un momento e intentá de nuevo.' },
       { status: 500 },
     );
   }

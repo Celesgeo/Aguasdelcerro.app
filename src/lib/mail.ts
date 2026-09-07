@@ -1,6 +1,6 @@
 import nodemailer from 'nodemailer';
 import { SITE } from '@/lib/constants';
-import { getCareerPositionLabel, type CareerPosition } from '@/lib/careers';
+import { getCareerPositionLabel, getFileExtension, type CareerPosition } from '@/lib/careers';
 import { sanitizeAttachmentFilename } from '@/lib/security';
 
 export type CareerEmailParams = {
@@ -21,6 +21,9 @@ type SmtpConfig = {
   secure: boolean;
   auth: { user: string; pass: string };
 };
+
+const SITE_ORIGIN = `https://${SITE.publicHost}`;
+const RESEND_TEST_FROM = `${SITE.name} <onboarding@resend.dev>`;
 
 function getWeb3FormsKey(): string | null {
   return process.env.WEB3FORMS_ACCESS_KEY?.trim() || null;
@@ -46,18 +49,35 @@ function getSmtpConfig(): SmtpConfig | null {
   };
 }
 
-export type MailProvider = 'resend' | 'web3forms' | 'smtp';
+export type MailProvider = 'resend' | 'web3forms' | 'formsubmit' | 'smtp';
+
+/** Resend free (100/día) no debe bloquear el formulario: se saltea hasta el reset UTC. */
+let resendBlockedUntil = 0;
+
+function isResendQuotaError(message: string): boolean {
+  return /quota exceeded|daily quota|rate[_ ]limit|too many requests/i.test(message);
+}
+
+function blockResendUntilQuotaReset(): void {
+  const now = new Date();
+  resendBlockedUntil =
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1) + 5 * 60 * 1000;
+}
+
+function isResendQuotaBlocked(): boolean {
+  return Date.now() < resendBlockedUntil;
+}
 
 export function isMailConfigured(): boolean {
   return getActiveMailProvider() !== null;
 }
 
-/** Proveedor que se usará al enviar (Resend prioriza adjuntos de CV). */
+/** Primer proveedor que se intenta. Resend free no va primero: su cuota diaria tumba el formulario. */
 export function getActiveMailProvider(): MailProvider | null {
-  if (getResendKey()) return 'resend';
   if (getWeb3FormsKey()) return 'web3forms';
   if (getSmtpConfig()) return 'smtp';
-  return null;
+  if (getResendKey() && !isResendQuotaBlocked()) return 'resend';
+  return 'formsubmit';
 }
 
 export function supportsCvEmailAttachment(): boolean {
@@ -65,10 +85,19 @@ export function supportsCvEmailAttachment(): boolean {
   return provider === 'resend' || provider === 'smtp';
 }
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function cvAttachmentFilename(params: CareerEmailParams): string {
+  const ext = getFileExtension(params.cvFilename) || '.bin';
+  return sanitizeAttachmentFilename(`cv-${params.puesto}${ext}`, `cv${ext}`);
 }
 
 function buildEmailContent(params: CareerEmailParams, options?: { cvAttached?: boolean }) {
@@ -81,7 +110,7 @@ function buildEmailContent(params: CareerEmailParams, options?: { cvAttached?: b
     : [
         `Archivo CV subido en la web: ${params.cvFilename} (${cvSize})`,
         'El CV no se adjunta en este email (plan gratuito del servicio).',
-        'Contactá al postulante por email o WhatsApp para solicitar el archivo.',
+        'Contactá al postulante por email o teléfono para solicitar el archivo.',
       ];
 
   const textBody = [
@@ -125,9 +154,14 @@ function buildEmailContent(params: CareerEmailParams, options?: { cvAttached?: b
   };
 }
 
+async function readJson(response: Response): Promise<Record<string, unknown> | null> {
+  return (await response.json().catch(() => null)) as Record<string, unknown> | null;
+}
+
 /**
  * Web3Forms gratuito: datos del formulario sí, adjuntos NO (feature PRO).
  * No enviar `attachment` — rompe el envío en plan free.
+ * Origin/Referer: las keys con dominio restringido rechazan llamadas server-side sin esos headers.
  */
 async function sendViaWeb3Forms(params: CareerEmailParams, accessKey: string): Promise<void> {
   const { puestoLabel, subject, textBody } = buildEmailContent(params, { cvAttached: false });
@@ -147,22 +181,23 @@ async function sendViaWeb3Forms(params: CareerEmailParams, accessKey: string): P
 
   const response = await fetch('https://api.web3forms.com/submit', {
     method: 'POST',
+    headers: {
+      Origin: SITE_ORIGIN,
+      Referer: `${SITE_ORIGIN}/trabaja-con-nosotros`,
+    },
     body,
   });
 
-  const result = (await response.json()) as { success?: boolean; message?: string };
-  if (!response.ok || !result.success) {
-    throw new Error(result.message ?? 'Web3Forms rechazó el envío');
+  const result = await readJson(response);
+  const success = result?.success === true;
+  if (!response.ok || !success) {
+    throw new Error(String(result?.message ?? `Web3Forms rechazó el envío (${response.status})`));
   }
 }
 
-async function sendViaResend(params: CareerEmailParams, apiKey: string): Promise<void> {
+async function sendViaResend(params: CareerEmailParams, apiKey: string, from: string): Promise<void> {
   const { to, subject, htmlBody, textBody } = buildEmailContent(params);
-  const safeFilename = sanitizeAttachmentFilename(params.cvFilename);
-  const from =
-    process.env.RESEND_FROM?.trim() ||
-    process.env.SMTP_FROM?.trim() ||
-    `${SITE.name} <${SITE.email}>`;
+  const safeFilename = cvAttachmentFilename(params);
 
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -187,14 +222,48 @@ async function sendViaResend(params: CareerEmailParams, apiKey: string): Promise
   });
 
   if (!response.ok) {
-    const error = (await response.json().catch(() => null)) as { message?: string } | null;
-    throw new Error(error?.message ?? 'Resend rechazó el envío');
+    const error = await readJson(response);
+    throw new Error(String(error?.message ?? `Resend rechazó el envío (${response.status})`));
+  }
+}
+
+/**
+ * HTTPS de respaldo sin API key. El primer envío pide confirmar el mail destino.
+ */
+async function sendViaFormSubmit(params: CareerEmailParams): Promise<void> {
+  const { to, subject, textBody } = buildEmailContent(params, { cvAttached: false });
+
+  const response = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(to)}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      Origin: SITE_ORIGIN,
+      Referer: `${SITE_ORIGIN}/trabaja-con-nosotros`,
+    },
+    body: JSON.stringify({
+      name: params.nombre,
+      email: params.email,
+      phone: params.telefono,
+      localidad: params.localidad,
+      puesto: getCareerPositionLabel(params.puesto),
+      _subject: subject,
+      message: textBody,
+      _template: 'table',
+      _captcha: 'false',
+    }),
+  });
+
+  const result = await readJson(response);
+  const success = result?.success === true || result?.success === 'true';
+  if (!response.ok || !success) {
+    throw new Error(String(result?.message ?? `FormSubmit rechazó el envío (${response.status})`));
   }
 }
 
 async function sendViaSmtp(params: CareerEmailParams, config: SmtpConfig): Promise<void> {
   const { to, subject, textBody, htmlBody } = buildEmailContent(params);
-  const safeFilename = sanitizeAttachmentFilename(params.cvFilename);
+  const safeFilename = cvAttachmentFilename(params);
   const from = process.env.SMTP_FROM?.trim() || config.auth.user;
 
   const attempts: Array<{ port: number; secure: boolean; requireTLS?: boolean }> =
@@ -210,8 +279,9 @@ async function sendViaSmtp(params: CareerEmailParams, config: SmtpConfig): Promi
       port: attempt.port,
       secure: attempt.secure,
       auth: config.auth,
-      connectionTimeout: 15_000,
-      greetingTimeout: 15_000,
+      connectionTimeout: 8_000,
+      greetingTimeout: 8_000,
+      socketTimeout: 12_000,
       ...(attempt.requireTLS ? { requireTLS: true } : {}),
       tls: { minVersion: 'TLSv1.2' },
     });
@@ -240,29 +310,74 @@ async function sendViaSmtp(params: CareerEmailParams, config: SmtpConfig): Promi
     }
   }
 
-  throw lastError;
+  throw lastError instanceof Error ? lastError : new Error(errorMessage(lastError));
+}
+
+async function tryResend(params: CareerEmailParams, errors: string[]): Promise<boolean> {
+  const resendKey = getResendKey();
+  if (!resendKey || isResendQuotaBlocked()) return false;
+
+  const fromCandidates = [process.env.RESEND_FROM?.trim(), RESEND_TEST_FROM].filter(
+    (value, index, list): value is string => Boolean(value) && list.indexOf(value) === index,
+  );
+
+  for (const from of fromCandidates) {
+    try {
+      await sendViaResend(params, resendKey, from);
+      return true;
+    } catch (error) {
+      const message = errorMessage(error);
+      console.error(`[mail] Resend (${from}) falló:`, message);
+      errors.push(`resend: ${message}`);
+      if (isResendQuotaError(message)) {
+        blockResendUntilQuotaReset();
+        break;
+      }
+    }
+  }
+
+  return false;
 }
 
 export async function sendCareerApplicationEmail(params: CareerEmailParams): Promise<void> {
-  const resendKey = getResendKey();
-  if (resendKey) {
-    await sendViaResend(params, resendKey);
-    return;
-  }
+  const errors: string[] = [];
 
   const web3Key = getWeb3FormsKey();
   if (web3Key) {
-    await sendViaWeb3Forms(params, web3Key);
+    try {
+      await sendViaWeb3Forms(params, web3Key);
+      return;
+    } catch (error) {
+      const message = errorMessage(error);
+      console.error('[mail] Web3Forms falló:', message);
+      errors.push(`web3forms: ${message}`);
+    }
+  }
+
+  try {
+    await sendViaFormSubmit(params);
     return;
+  } catch (error) {
+    const message = errorMessage(error);
+    console.error('[mail] FormSubmit falló:', message);
+    errors.push(`formsubmit: ${message}`);
   }
 
   const smtp = getSmtpConfig();
   if (smtp) {
-    await sendViaSmtp(params, smtp);
-    return;
+    try {
+      await sendViaSmtp(params, smtp);
+      return;
+    } catch (error) {
+      const message = errorMessage(error);
+      console.error('[mail] SMTP falló:', message);
+      errors.push(`smtp: ${message}`);
+    }
   }
 
-  throw new Error('Email no configurado');
+  if (await tryResend(params, errors)) return;
+
+  throw new Error(errors.length ? errors.join(' | ') : 'Email no configurado');
 }
 
 function escapeHtml(value: string): string {
