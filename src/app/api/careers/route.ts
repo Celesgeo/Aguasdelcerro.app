@@ -12,7 +12,7 @@ import {
   type CareerPosition,
 } from '@/lib/careers';
 import { saveCareerApplication, incrementApplicationCount } from '@/lib/careers-store';
-import { isMailConfigured, sendCareerApplicationEmail } from '@/lib/mail';
+import { trySendCareerApplicationEmail } from '@/lib/mail';
 import { clientIp, rateLimit, sanitizeText } from '@/lib/security';
 
 export const maxDuration = 60;
@@ -117,13 +117,6 @@ export async function POST(request: Request) {
       cvOriginalName = cvEntry.name.slice(0, 200);
     }
 
-    if (!isMailConfigured()) {
-      return NextResponse.json(
-        { ok: false, error: 'El envío por email no está disponible. Intentá de nuevo en unos minutos.' },
-        { status: 503 },
-      );
-    }
-
     const applicationData = {
       nombre,
       telefono,
@@ -137,18 +130,28 @@ export async function POST(request: Request) {
       ip,
     };
 
-    await sendCareerApplicationEmail({
+    let saved = false;
+    try {
+      await saveCareerApplication(applicationData, buffer, ext);
+      saved = true;
+    } catch (error) {
+      console.error('[careers] no se pudo guardar la postulación:', error);
+    }
+
+    const emailed = await trySendCareerApplicationEmail({
       ...applicationData,
       cvBuffer: buffer,
       cvFilename: cvOriginalName,
     });
+    console.info(
+      `[careers] ${nombre} · ${email} · ${puesto} · guardada=${saved} · email=${emailed}`,
+    );
 
-    try {
-      if (hasCv) {
-        await saveCareerApplication(applicationData, buffer, ext);
-      }
-    } catch {
-      // El email ya salió; el backup en disco es opcional en producción efímera.
+    if (!saved && !emailed) {
+      return NextResponse.json(
+        { ok: false, error: 'No se pudo registrar la postulación. Recargá la página e intentá de nuevo.' },
+        { status: 500 },
+      );
     }
 
     let count: number | undefined;

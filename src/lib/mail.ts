@@ -46,11 +46,13 @@ function getSmtpConfig(): SmtpConfig | null {
   const rawPass = process.env.SMTP_PASS?.trim();
   if (!rawPass) return null;
   const pass = rawPass.replace(/\s+/g, '');
-  const user = process.env.SMTP_USER?.trim() || ACTIVE_CAREERS_INBOX;
-  // contacto@aguasdelcerro.net todavía no está activo.
-  if (user.toLowerCase().endsWith('@aguasdelcerro.net')) return null;
+  let user = process.env.SMTP_USER?.trim() || ACTIVE_CAREERS_INBOX;
+  // contacto@aguasdelcerro.net todavía no está activo: mandar desde Gmail.
+  if (user.toLowerCase().endsWith('@aguasdelcerro.net')) {
+    user = ACTIVE_CAREERS_INBOX;
+  }
   const host = process.env.SMTP_HOST?.trim() || 'smtp.gmail.com';
-  const port = Number(process.env.SMTP_PORT ?? '465');
+  const port = Number(process.env.SMTP_PORT ?? '587');
 
   return {
     host,
@@ -85,10 +87,10 @@ export function isMailConfigured(): boolean {
 
 /** Primer canal con chance real de adjuntar el CV. */
 export function getActiveMailProvider(): MailProvider | null {
+  if (getWeb3FormsKey()) return 'web3forms';
   if (getSmtpConfig()) return 'smtp';
   if (getResendKey() && !isResendQuotaBlocked()) return 'resend';
-  if (getWeb3FormsKey()) return 'web3forms';
-  return 'formsubmit';
+  return null;
 }
 
 export function supportsCvEmailAttachment(): boolean {
@@ -291,7 +293,6 @@ async function sendViaSmtp(params: CareerEmailParams, config: SmtpConfig): Promi
 
   const attempts: Array<{ port: number; secure: boolean; requireTLS?: boolean }> = [
     { port: 587, secure: false, requireTLS: true },
-    { port: 465, secure: true },
   ];
 
   let lastError: unknown;
@@ -303,9 +304,9 @@ async function sendViaSmtp(params: CareerEmailParams, config: SmtpConfig): Promi
       secure: attempt.secure,
       auth: config.auth,
       family: 4,
-      connectionTimeout: 4_000,
-      greetingTimeout: 4_000,
-      socketTimeout: 8_000,
+      connectionTimeout: 3_000,
+      greetingTimeout: 3_000,
+      socketTimeout: 5_000,
       requireTLS: Boolean(attempt.requireTLS),
       tls: { minVersion: 'TLSv1.2' },
     } as nodemailer.TransportOptions);
@@ -370,15 +371,6 @@ async function tryResend(params: CareerEmailParams, errors: string[]): Promise<b
 export async function sendCareerApplicationEmail(params: CareerEmailParams): Promise<void> {
   const errors: string[] = [];
 
-  try {
-    await sendViaFormSubmit(params);
-    return;
-  } catch (error) {
-    const message = errorMessage(error);
-    console.error('[mail] FormSubmit falló:', message);
-    errors.push(`formsubmit: ${message}`);
-  }
-
   const web3Key = getWeb3FormsKey();
   if (web3Key) {
     try {
@@ -406,6 +398,22 @@ export async function sendCareerApplicationEmail(params: CareerEmailParams): Pro
   if (await tryResend(params, errors)) return;
 
   throw new Error(errors.length ? errors.join(' | ') : 'Email no configurado');
+}
+
+/** Intenta el mail sin bloquear al postulante más de unos segundos. */
+export async function trySendCareerApplicationEmail(params: CareerEmailParams): Promise<boolean> {
+  try {
+    await Promise.race([
+      sendCareerApplicationEmail(params),
+      new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('timeout')), 6_000);
+      }),
+    ]);
+    return true;
+  } catch (error) {
+    console.error('[mail] no se pudo avisar por email:', errorMessage(error));
+    return false;
+  }
 }
 
 function escapeHtml(value: string): string {

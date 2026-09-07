@@ -32,6 +32,12 @@ export default function AdminShell({
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <Link href="/admin" className="text-xs tracking-[0.15em] uppercase text-brand-cream/70 hover:text-brand-gold font-body">
+              Socios
+            </Link>
+            <Link href="/admin/postulaciones" className="text-xs tracking-[0.15em] uppercase text-brand-cream/70 hover:text-brand-gold font-body">
+              Postulaciones
+            </Link>
             <Link href="/membresias" className="text-xs tracking-[0.15em] uppercase text-brand-cream/70 hover:text-brand-gold font-body">
               Ver sitio
             </Link>
