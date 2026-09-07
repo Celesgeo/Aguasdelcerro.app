@@ -2,7 +2,6 @@ import Image from 'next/image';
 import { Droplets, Leaf, Moon, Sparkles } from 'lucide-react';
 import SectionHeading from '@/components/shared/SectionHeading';
 import ScrollReveal from '@/components/shared/ScrollReveal';
-import MediaVideo from '@/components/shared/MediaVideo';
 import { TERMAS_BENEFITS } from '@/lib/constants';
 import { getTermasMedia } from '@/lib/termas-media';
 
@@ -23,13 +22,21 @@ export default function TermasSection() {
 
         <div className="mb-16 grid gap-4 lg:grid-cols-12">
           <ScrollReveal className="lg:col-span-8">
-            <MediaVideo
-              src={media.video}
-              poster={media.poster}
-              label="Vista general · 13 piletas privadas"
-              objectPosition="center 58%"
-              className="h-full aspect-[16/10] border border-brand-gold/15"
-            />
+            <div className="relative aspect-[16/10] overflow-hidden border border-brand-gold/15">
+              <Image
+                src={media.hero}
+                alt="Piletas de piedra al atardecer en el parque térmico"
+                fill
+                className="object-cover"
+                style={{ objectPosition: 'center 62%' }}
+                sizes="(max-width:1024px) 100vw, 66vw"
+                quality={92}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-brand-black/50 via-transparent to-transparent pointer-events-none" />
+              <p className="absolute bottom-5 left-5 text-xs tracking-[0.25em] uppercase text-brand-cream/85 font-body pointer-events-none">
+                Vista general · 13 piletas privadas
+              </p>
+            </div>
           </ScrollReveal>
 
           <ScrollReveal delay={0.1} className="lg:col-span-4">
