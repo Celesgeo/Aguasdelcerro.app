@@ -1,5 +1,3 @@
-import { SITE } from '@/lib/constants';
-
 export const CAREERS_POSITIONS = [
   { value: 'cocinero', label: 'Cocinero/a' },
   { value: 'mozo', label: 'Mozo/a' },
@@ -28,9 +26,15 @@ export function getCareerPositionLabel(value: string): string {
   return CAREERS_POSITIONS.find((p) => p.value === value)?.label ?? value;
 }
 
-/** Destino público del formulario (FormSubmit). No usa Resend. */
+/** Destino de avisos. No usar contacto@aguasdelcerro.net: todavía no está activo. */
+const ACTIVE_CAREERS_INBOX = 'celesteorellano14@gmail.com';
+
 export function getPublicCareersNotifyEmail(): string {
-  return process.env.NEXT_PUBLIC_CAREERS_NOTIFY_EMAIL?.trim() || SITE.email;
+  const configured = process.env.NEXT_PUBLIC_CAREERS_NOTIFY_EMAIL?.trim();
+  if (configured && !configured.toLowerCase().endsWith('@aguasdelcerro.net')) {
+    return configured;
+  }
+  return ACTIVE_CAREERS_INBOX;
 }
 
 export function explainCareersMailError(raw: string): string {

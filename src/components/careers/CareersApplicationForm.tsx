@@ -8,9 +8,13 @@ import {
   CAREERS_POSITIONS,
   CV_ALLOWED_EXTENSIONS,
   CV_MAX_BYTES,
+  explainCareersMailError,
+  getCareerPositionLabel,
   getFileExtension,
+  getPublicCareersNotifyEmail,
   isAllowedCvExtension,
 } from '@/lib/careers';
+import { SITE } from '@/lib/constants';
 
 interface CareersFormData {
   nombre: string;
@@ -36,6 +40,58 @@ function validateCvFile(file: File | undefined): string | true {
   }
 
   return true;
+}
+
+function buildApplicationMessage(data: CareersFormData, puestoLabel: string, cvName?: string): string {
+  return [
+    `Nueva postulación laboral — ${SITE.name}`,
+    '',
+    `Nombre: ${data.nombre}`,
+    `Teléfono: ${data.telefono}`,
+    `Email: ${data.email}`,
+    `Localidad: ${data.localidad}`,
+    `Puesto: ${puestoLabel}`,
+    cvName ? `CV subido en la web: ${cvName}` : 'CV: no adjuntó archivo',
+    '',
+    'Presentación / experiencia:',
+    data.presentacion,
+  ].join('\n');
+}
+
+async function submitViaFormSubmitAjax(
+  data: CareersFormData,
+  cvFile: File | null,
+): Promise<{ ok: boolean; error?: string }> {
+  const puestoLabel = getCareerPositionLabel(data.puesto);
+  const response = await fetch(`https://formsubmit.co/ajax/${getPublicCareersNotifyEmail()}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify({
+      name: data.nombre,
+      email: data.email,
+      phone: data.telefono,
+      localidad: data.localidad,
+      puesto: puestoLabel,
+      message: buildApplicationMessage(data, puestoLabel, cvFile?.name),
+      _subject: `[Postulación] ${puestoLabel} — ${data.nombre}`,
+      _template: 'table',
+      _captcha: 'false',
+    }),
+  });
+
+  const result = (await response.json().catch(() => null)) as {
+    success?: boolean | string;
+    message?: string;
+  } | null;
+
+  const ok = result?.success === true || result?.success === 'true';
+  if (ok) return { ok: true };
+
+  const raw = String(result?.message ?? `FormSubmit rechazó el envío (${response.status})`);
+  return { ok: false, error: explainCareersMailError(raw) };
 }
 
 function CareersFormFields({ onSuccess }: { onSuccess: (message: string) => void }) {
@@ -87,6 +143,26 @@ function CareersFormFields({ onSuccess }: { onSuccess: (message: string) => void
     setIsSubmitting(true);
 
     try {
+      if (data._gotcha) {
+        onSuccess(
+          '¡Gracias! Recibimos tu postulación. Nos contactaremos si tu perfil encaja con la búsqueda.',
+        );
+        return;
+      }
+
+      const browserSend = await submitViaFormSubmitAjax(data, cvFile);
+      if (browserSend.ok) {
+        onSuccess(
+          '¡Gracias! Recibimos tu postulación. Nos contactaremos si tu perfil encaja con la búsqueda.',
+        );
+        return;
+      }
+
+      if (browserSend.error && !browserSend.error.startsWith('No se pudo enviar la postulación. Esperá')) {
+        setSubmitError(browserSend.error);
+        return;
+      }
+
       const body = new FormData();
       body.append('nombre', data.nombre);
       body.append('telefono', data.telefono);
@@ -105,14 +181,18 @@ function CareersFormFields({ onSuccess }: { onSuccess: (message: string) => void
         message?: string;
       } | null;
 
-      if (!response.ok || !result?.ok) {
-        setSubmitError(result?.error ?? 'No se pudo enviar la postulación. Esperá un momento e intentá de nuevo.');
+      if (response.ok && result?.ok) {
+        onSuccess(
+          result.message ??
+            '¡Gracias! Recibimos tu postulación. Nos contactaremos si tu perfil encaja con la búsqueda.',
+        );
         return;
       }
 
-      onSuccess(
-        result.message ??
-          '¡Gracias! Recibimos tu postulación. Nos contactaremos si tu perfil encaja con la búsqueda.',
+      setSubmitError(
+        result?.error ??
+          browserSend.error ??
+          'No se pudo enviar la postulación. Esperá un momento e intentá de nuevo.',
       );
     } catch {
       setSubmitError('Error de conexión. Verificá tu internet e intentá de nuevo.');
