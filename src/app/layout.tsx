@@ -7,7 +7,7 @@ import Loader from '@/components/layout/Loader';
 import WhatsAppFloat from '@/components/shared/WhatsAppFloat';
 import BackgroundAmbience from '@/components/shared/BackgroundAmbience';
 import JsonLd from '@/components/seo/JsonLd';
-import GoogleAnalytics from '@/components/seo/GoogleAnalytics';
+import GoogleAnalyticsLoader from '@/components/seo/GoogleAnalyticsLoader';
 import {
   createRootMetadata,
   faqPageJsonLd,
@@ -43,8 +43,6 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim();
-
   return (
     <html lang="es-AR" className={`${cormorant.variable} ${playfair.variable} ${inter.variable} h-full`}>
       <head>
@@ -57,7 +55,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         />
       </head>
       <body className="min-h-full flex flex-col bg-brand-cream text-brand-black antialiased">
-        {gaId ? <GoogleAnalytics measurementId={gaId} /> : null}
+        <GoogleAnalyticsLoader />
         <Loader />
         <Navbar />
         <main className="flex-1">{children}</main>
