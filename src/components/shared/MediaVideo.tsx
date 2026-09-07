@@ -8,6 +8,7 @@ interface MediaVideoProps {
   className?: string;
   label?: string;
   priority?: boolean;
+  objectPosition?: string;
 }
 
 export default function MediaVideo({
@@ -16,6 +17,7 @@ export default function MediaVideo({
   className = '',
   label,
   priority = false,
+  objectPosition = 'center',
 }: MediaVideoProps) {
   return (
     <div className={`relative overflow-hidden ${className}`}>
@@ -26,6 +28,7 @@ export default function MediaVideo({
         priority={priority}
         sizes="100vw"
         className="object-cover"
+        style={{ objectPosition }}
         aria-hidden
       />
       <video
@@ -36,6 +39,7 @@ export default function MediaVideo({
         preload="metadata"
         poster={poster}
         className="absolute inset-0 h-full w-full object-cover"
+        style={{ objectPosition }}
         aria-label={label ?? 'Video Aguas del Cerro'}
       >
         <source src={src} type="video/mp4" />

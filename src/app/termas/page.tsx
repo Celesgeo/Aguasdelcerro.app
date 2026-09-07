@@ -3,6 +3,7 @@ import JsonLd from '@/components/seo/JsonLd';
 import SectionHeading from '@/components/shared/SectionHeading';
 import ScrollReveal from '@/components/shared/ScrollReveal';
 import Button from '@/components/shared/Button';
+import MediaVideo from '@/components/shared/MediaVideo';
 import { TERMAS_BENEFITS } from '@/lib/constants';
 import { getTermasMedia } from '@/lib/termas-media';
 import { breadcrumbJsonLd, createPageMetadata } from '@/lib/seo';
@@ -30,16 +31,15 @@ export default function TermasPage() {
       />
 
       <section className="relative pt-28 min-h-[75vh] flex items-end overflow-hidden">
-        <Image
-          src={media.hero}
-          alt="Piscinas de piedra del parque térmico"
-          fill
-          priority
-          quality={92}
-          className="object-cover"
-          style={{ objectPosition: 'center 40%' }}
-          sizes="100vw"
-        />
+        <div className="absolute inset-0">
+          <MediaVideo
+            src={media.video}
+            poster={media.hero}
+            priority
+            objectPosition="center 58%"
+            className="h-full w-full"
+          />
+        </div>
         <div className="absolute inset-0 bg-gradient-to-t from-brand-black/85 via-brand-black/40 to-brand-black/25" />
         <div className="relative z-10 mx-auto max-w-7xl w-full px-6 lg:px-10 pb-16 md:pb-24">
           <p className="text-xs tracking-[0.45em] uppercase text-brand-gold font-body mb-4">Parque Térmico</p>
@@ -65,7 +65,7 @@ export default function TermasPage() {
               <div className="relative aspect-[16/10]">
                 <Image
                   src={media.overview}
-                  alt="Vista panorámica del parque térmico"
+                  alt="Vista nocturna del parque térmico hacia la ciudad"
                   fill
                   className="object-cover transition-transform duration-[1.2s] group-hover:scale-[1.02]"
                   sizes="(max-width:1024px) 100vw, 50vw"
@@ -79,9 +79,10 @@ export default function TermasPage() {
             <div className="group relative overflow-hidden h-full min-h-[280px]">
               <Image
                 src={media.hero}
-                alt="Piletas térmicas de piedra"
+                alt="Piletas de piedra al atardecer en Aguas del Cerro"
                 fill
                 className="object-cover transition-transform duration-[1.2s] group-hover:scale-[1.02]"
+                style={{ objectPosition: 'center 58%' }}
                 sizes="(max-width:1024px) 100vw, 50vw"
                 quality={92}
               />
@@ -105,10 +106,10 @@ export default function TermasPage() {
           <div className="relative aspect-[21/9] min-h-[320px] overflow-hidden">
             <Image
               src={media.vip}
-              alt="Sector VIP — deck exclusivo con vista panorámica"
+              alt="Sector VIP — vista nocturna hacia las luces de la ciudad"
               fill
               className="object-cover"
-              style={{ objectPosition: 'center 45%' }}
+              style={{ objectPosition: 'center 60%' }}
               sizes="100vw"
               quality={92}
             />

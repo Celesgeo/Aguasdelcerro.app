@@ -72,6 +72,8 @@ function altFromFilename(filename: string, category: MediaCategory): string {
   const n = filename.toLowerCase();
   if (n.includes('real-cartel')) return 'Cartel iluminado de Aguas del Cerro de noche';
   if (n.includes('real-evento')) return 'Mirador nocturno con vista a la ciudad de La Rioja';
+  if (n.includes('real-termas-atardecer')) return 'Piletas térmicas al atardecer en Aguas del Cerro';
+  if (n.includes('real-termas-noche')) return 'Vista nocturna del parque térmico hacia la ciudad';
   if (n.includes('real-termas') || n.includes('piletas')) return 'Piletas térmicas de piedra en Aguas del Cerro';
   if (n.includes('real-naturaleza') || n.includes('lechuza')) return 'Fauna y naturaleza de La Rioja';
   if (n.includes('real-atardecer')) return 'Atardecer en las montañas riojanas';
@@ -93,6 +95,7 @@ function altFromFilename(filename: string, category: MediaCategory): string {
 function guessOrientation(filename: string): 'landscape' | 'portrait' | 'square' {
   const n = filename.toLowerCase();
   if (n.includes('logo')) return 'square';
+  if (n.includes('real-termas-noche')) return 'landscape';
   if (n.includes('real-cartel') || n.includes('real-termas') || n.includes('real-naturaleza') || n.includes('real-atardecer')) {
     return 'portrait';
   }
@@ -181,7 +184,7 @@ export function getSectionMedia() {
   const by = (name: string) => images.find((i) => i.filename.includes(name))?.src;
 
   return {
-    termas: by('real-termas') ?? '/images/real/real-termas-piletas.jpg',
+    termas: by('real-termas-atardecer') ?? by('real-termas') ?? '/images/termas/termas-hero.jpg',
     mirador: by('real-evento') ?? '/images/real/real-evento-mirador-noche.jpg',
     experiencia: by('real-atardecer') ?? '/images/real/real-atardecer-montana.jpg',
     naturaleza: by('real-naturaleza') ?? '/images/real/real-naturaleza-lechuza.jpg',

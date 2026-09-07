@@ -27,6 +27,7 @@ export default function TermasSection() {
               src={media.video}
               poster={media.poster}
               label="Vista general · 13 piletas privadas"
+              objectPosition="center 58%"
               className="h-full aspect-[16/10] border border-brand-gold/15"
             />
           </ScrollReveal>
@@ -35,18 +36,18 @@ export default function TermasSection() {
             <div className="relative aspect-[16/10] lg:aspect-auto lg:h-full min-h-[280px] overflow-hidden border border-brand-gold/15">
               <Image
                 src={media.vip}
-                alt="Sector VIP con deck de madera y camas Bali"
+                alt="Vista nocturna del parque térmico hacia La Rioja"
                 fill
                 className="object-cover"
-                style={{ objectPosition: 'center 45%' }}
+                style={{ objectPosition: 'center 60%' }}
                 sizes="(max-width:1024px) 100vw, 33vw"
                 quality={92}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-brand-black/75 via-brand-black/15 to-transparent" />
               <div className="absolute inset-3 border border-brand-gold/20 pointer-events-none" />
               <div className="absolute bottom-5 left-5 right-5">
-                <p className="text-xs tracking-[0.25em] uppercase text-brand-gold font-body mb-2">Sector VIP</p>
-                <p className="font-subtitle text-xl text-brand-cream">Deck exclusivo · Camas Bali</p>
+                <p className="text-xs tracking-[0.25em] uppercase text-brand-gold font-body mb-2">De noche</p>
+                <p className="font-subtitle text-xl text-brand-cream">Vista al valle · Luces de La Rioja</p>
               </div>
             </div>
           </ScrollReveal>
