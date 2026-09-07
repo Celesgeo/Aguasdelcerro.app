@@ -1,15 +1,33 @@
 'use client';
 
+import Image from 'next/image';
+
 interface MediaVideoProps {
   src: string;
   poster: string;
   className?: string;
   label?: string;
+  priority?: boolean;
 }
 
-export default function MediaVideo({ src, poster, className = '', label }: MediaVideoProps) {
+export default function MediaVideo({
+  src,
+  poster,
+  className = '',
+  label,
+  priority = false,
+}: MediaVideoProps) {
   return (
     <div className={`relative overflow-hidden ${className}`}>
+      <Image
+        src={poster}
+        alt=""
+        fill
+        priority={priority}
+        sizes="100vw"
+        className="object-cover"
+        aria-hidden
+      />
       <video
         autoPlay
         muted
@@ -23,11 +41,11 @@ export default function MediaVideo({ src, poster, className = '', label }: Media
         <source src={src} type="video/mp4" />
       </video>
       <div className="absolute inset-0 bg-gradient-to-t from-brand-black/50 via-transparent to-transparent pointer-events-none" />
-      {label && (
+      {label ? (
         <p className="absolute bottom-5 left-5 text-xs tracking-[0.25em] uppercase text-brand-cream/85 font-body pointer-events-none">
           {label}
         </p>
-      )}
+      ) : null}
     </div>
   );
 }

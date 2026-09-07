@@ -1,10 +1,12 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { CheckCircle2, FileUp, Loader2 } from 'lucide-react';
 import Button from '@/components/shared/Button';
+import ApplicationCounter from '@/components/careers/ApplicationCounter';
 import {
+  BASE_APPLICATION_COUNT,
   CAREERS_POSITIONS,
   CV_ALLOWED_EXTENSIONS,
   CV_MAX_BYTES,
@@ -94,7 +96,21 @@ async function submitViaFormSubmitAjax(
   return { ok: false, error: explainCareersMailError(raw) };
 }
 
-function CareersFormFields({ onSuccess }: { onSuccess: (message: string) => void }) {
+async function bumpApplicationCount(): Promise<number | null> {
+  try {
+    const response = await fetch('/api/careers/count', { method: 'POST' });
+    const result = (await response.json().catch(() => null)) as { count?: number } | null;
+    return typeof result?.count === 'number' ? result.count : null;
+  } catch {
+    return null;
+  }
+}
+
+function CareersFormFields({
+  onSuccess,
+}: {
+  onSuccess: (message: string, options?: { count?: number; skipCount?: boolean }) => void;
+}) {
   const [startedAt] = useState(() => Date.now());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [cvFile, setCvFile] = useState<File | null>(null);
@@ -146,6 +162,7 @@ function CareersFormFields({ onSuccess }: { onSuccess: (message: string) => void
       if (data._gotcha) {
         onSuccess(
           '¡Gracias! Recibimos tu postulación. Nos contactaremos si tu perfil encaja con la búsqueda.',
+          { skipCount: true },
         );
         return;
       }
@@ -179,12 +196,14 @@ function CareersFormFields({ onSuccess }: { onSuccess: (message: string) => void
         ok?: boolean;
         error?: string;
         message?: string;
+        count?: number;
       } | null;
 
       if (response.ok && result?.ok) {
         onSuccess(
           result.message ??
             '¡Gracias! Recibimos tu postulación. Nos contactaremos si tu perfil encaja con la búsqueda.',
+          typeof result.count === 'number' ? { count: result.count, skipCount: true } : undefined,
         );
         return;
       }
@@ -373,26 +392,67 @@ function CareersFormFields({ onSuccess }: { onSuccess: (message: string) => void
 export default function CareersApplicationForm() {
   const [formKey, setFormKey] = useState(0);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [count, setCount] = useState(BASE_APPLICATION_COUNT);
+  const [highlight, setHighlight] = useState(false);
+  const highlightTimer = useRef<number | null>(null);
+  const countRef = useRef(count);
+  countRef.current = count;
 
-  if (successMessage) {
-    return (
-      <div className="max-w-2xl mx-auto text-center py-10 px-6 bg-white border border-brand-gold/30">
-        <CheckCircle2 className="mx-auto mb-6 text-brand-gold" size={48} strokeWidth={1.5} />
-        <h3 className="font-display text-3xl text-brand-brown mb-4">Postulación enviada</h3>
-        <p className="text-brand-dark/70 font-body leading-relaxed">{successMessage}</p>
-        <Button
-          type="button"
-          className="mt-8"
-          onClick={() => {
-            setSuccessMessage(null);
-            setFormKey((key) => key + 1);
-          }}
-        >
-          Enviar otra postulación
-        </Button>
-      </div>
-    );
-  }
+  useEffect(() => {
+    fetch('/api/careers/count')
+      .then((response) => response.json())
+      .then((data: { count?: number }) => {
+        if (typeof data.count === 'number') setCount(data.count);
+      })
+      .catch(() => undefined);
 
-  return <CareersFormFields key={formKey} onSuccess={setSuccessMessage} />;
+    return () => {
+      if (highlightTimer.current) window.clearTimeout(highlightTimer.current);
+    };
+  }, []);
+
+  const pulseTo = (next: number) => {
+    setCount(next);
+    setHighlight(true);
+    if (highlightTimer.current) window.clearTimeout(highlightTimer.current);
+    highlightTimer.current = window.setTimeout(() => setHighlight(false), 1600);
+  };
+
+  const handleSuccess = async (
+    message: string,
+    options?: { count?: number; skipCount?: boolean },
+  ) => {
+    if (typeof options?.count === 'number') {
+      pulseTo(options.count);
+    } else if (!options?.skipCount) {
+      const next = await bumpApplicationCount();
+      pulseTo(next ?? countRef.current + 1);
+    }
+    setSuccessMessage(message);
+  };
+
+  return (
+    <>
+      <ApplicationCounter value={count} highlight={highlight} />
+      {successMessage ? (
+        <div className="max-w-2xl mx-auto text-center py-10 px-6 bg-white border border-brand-gold/30">
+          <CheckCircle2 className="mx-auto mb-6 text-brand-gold" size={48} strokeWidth={1.5} />
+          <h3 className="font-display text-3xl text-brand-brown mb-4">Postulación enviada</h3>
+          <p className="text-brand-dark/70 font-body leading-relaxed">{successMessage}</p>
+          <Button
+            type="button"
+            className="mt-8"
+            onClick={() => {
+              setSuccessMessage(null);
+              setFormKey((key) => key + 1);
+            }}
+          >
+            Enviar otra postulación
+          </Button>
+        </div>
+      ) : (
+        <CareersFormFields key={formKey} onSuccess={handleSuccess} />
+      )}
+    </>
+  );
 }

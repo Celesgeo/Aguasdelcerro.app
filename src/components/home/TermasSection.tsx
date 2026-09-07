@@ -27,7 +27,7 @@ export default function TermasSection() {
               src={media.video}
               poster={media.poster}
               label="Vista general · 13 piletas privadas"
-              className="aspect-[16/10] border border-brand-gold/15"
+              className="h-full aspect-[16/10] border border-brand-gold/15"
             />
           </ScrollReveal>
 

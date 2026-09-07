@@ -7,6 +7,9 @@ export const CAREERS_POSITIONS = [
 
 export type CareerPosition = (typeof CAREERS_POSITIONS)[number]['value'];
 
+/** Base pública del contador de postulaciones (aprox. históricas + nuevas). */
+export const BASE_APPLICATION_COUNT = 1856;
+
 export const CV_MAX_BYTES = 5 * 1024 * 1024; // 5 MB
 
 export const CV_ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx', '.jpg', '.jpeg', '.png', '.webp'] as const;

@@ -11,7 +11,7 @@ import {
   explainCareersMailError,
   type CareerPosition,
 } from '@/lib/careers';
-import { saveCareerApplication } from '@/lib/careers-store';
+import { saveCareerApplication, incrementApplicationCount } from '@/lib/careers-store';
 import { isMailConfigured, sendCareerApplicationEmail } from '@/lib/mail';
 import { clientIp, rateLimit, sanitizeText } from '@/lib/security';
 
@@ -151,8 +151,16 @@ export async function POST(request: Request) {
       // El email ya salió; el backup en disco es opcional en producción efímera.
     }
 
+    let count: number | undefined;
+    try {
+      count = await incrementApplicationCount();
+    } catch {
+      count = undefined;
+    }
+
     return NextResponse.json({
       ok: true,
+      count,
       message: '¡Gracias! Recibimos tu postulación. Nos contactaremos si tu perfil encaja con la búsqueda.',
     });
   } catch (error) {
