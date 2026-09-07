@@ -229,13 +229,11 @@ async function sendViaResend(params: CareerEmailParams, apiKey: string, from: st
 async function sendViaFormSubmit(params: CareerEmailParams): Promise<void> {
   const { to, subject, textBody } = buildEmailContent(params, { cvAttached: false });
 
-  const response = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(to)}`, {
+  const response = await fetch(`https://formsubmit.co/ajax/${to}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
-      Origin: SITE_ORIGIN,
-      Referer: `${SITE_ORIGIN}/trabaja-con-nosotros`,
     },
     body: JSON.stringify({
       name: params.nombre,
@@ -258,14 +256,15 @@ async function sendViaFormSubmit(params: CareerEmailParams): Promise<void> {
 }
 
 async function sendViaSmtp(params: CareerEmailParams, config: SmtpConfig): Promise<void> {
-  const { to, subject, textBody, htmlBody } = buildEmailContent(params);
+  const hasCv = params.cvBuffer.length > 0;
+  const { to, subject, textBody, htmlBody } = buildEmailContent(params, { cvAttached: hasCv });
   const safeFilename = cvAttachmentFilename(params);
   const from = process.env.SMTP_FROM?.trim() || config.auth.user;
 
-  const attempts: Array<{ port: number; secure: boolean; requireTLS?: boolean }> =
-    config.port === 465
-      ? [{ port: 465, secure: true }, { port: 587, secure: false, requireTLS: true }]
-      : [{ port: config.port, secure: config.secure, requireTLS: config.port === 587 }];
+  const attempts: Array<{ port: number; secure: boolean; requireTLS?: boolean }> = [
+    { port: 587, secure: false, requireTLS: true },
+    { port: 465, secure: true },
+  ];
 
   let lastError: unknown;
 
@@ -275,12 +274,13 @@ async function sendViaSmtp(params: CareerEmailParams, config: SmtpConfig): Promi
       port: attempt.port,
       secure: attempt.secure,
       auth: config.auth,
-      connectionTimeout: 8_000,
-      greetingTimeout: 8_000,
-      socketTimeout: 12_000,
-      ...(attempt.requireTLS ? { requireTLS: true } : {}),
+      family: 4,
+      connectionTimeout: 12_000,
+      greetingTimeout: 12_000,
+      socketTimeout: 20_000,
+      requireTLS: Boolean(attempt.requireTLS),
       tls: { minVersion: 'TLSv1.2' },
-    });
+    } as nodemailer.TransportOptions);
 
     try {
       await transporter.sendMail({
@@ -290,13 +290,17 @@ async function sendViaSmtp(params: CareerEmailParams, config: SmtpConfig): Promi
         subject,
         text: textBody,
         html: htmlBody,
-        attachments: [
-          {
-            filename: safeFilename,
-            content: params.cvBuffer,
-            contentType: params.cvMimeType,
-          },
-        ],
+        ...(hasCv
+          ? {
+              attachments: [
+                {
+                  filename: safeFilename,
+                  content: params.cvBuffer,
+                  contentType: params.cvMimeType,
+                },
+              ],
+            }
+          : {}),
       });
       transporter.close();
       return;
@@ -338,6 +342,18 @@ async function tryResend(params: CareerEmailParams, errors: string[]): Promise<b
 export async function sendCareerApplicationEmail(params: CareerEmailParams): Promise<void> {
   const errors: string[] = [];
 
+  const smtp = getSmtpConfig();
+  if (smtp) {
+    try {
+      await sendViaSmtp(params, smtp);
+      return;
+    } catch (error) {
+      const message = errorMessage(error);
+      console.error('[mail] SMTP falló:', message);
+      errors.push(`smtp: ${message}`);
+    }
+  }
+
   try {
     await sendViaFormSubmit(params);
     return;
@@ -359,17 +375,7 @@ export async function sendCareerApplicationEmail(params: CareerEmailParams): Pro
     }
   }
 
-  const smtp = getSmtpConfig();
-  if (smtp) {
-    try {
-      await sendViaSmtp(params, smtp);
-      return;
-    } catch (error) {
-      const message = errorMessage(error);
-      console.error('[mail] SMTP falló:', message);
-      errors.push(`smtp: ${message}`);
-    }
-  }
+  if (await tryResend(params, errors)) return;
 
   throw new Error(errors.length ? errors.join(' | ') : 'Email no configurado');
 }
