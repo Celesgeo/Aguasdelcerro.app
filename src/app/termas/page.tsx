@@ -13,7 +13,7 @@ export const metadata: Metadata = createPageMetadata({
   description:
     'Parque térmico en La Rioja, Argentina. Bienestar, relax y conexión con la naturaleza en Aguas del Cerro.',
   path: '/termas',
-  image: '/images/termas/termas-hero.jpg',
+  image: '/images/termas/termas-portada.jpg',
   keywords: ['parque térmico', 'termas La Rioja', 'spa montaña', 'aguas termales'],
 });
 
@@ -37,7 +37,7 @@ export default function TermasPage() {
           priority
           quality={92}
           className="object-cover"
-          style={{ objectPosition: 'center 62%' }}
+          style={{ objectPosition: 'center 42%' }}
           sizes="100vw"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-brand-black/85 via-brand-black/35 to-brand-black/15" />

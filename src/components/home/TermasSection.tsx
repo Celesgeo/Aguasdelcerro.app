@@ -28,7 +28,7 @@ export default function TermasSection() {
                 alt="Piletas de piedra al atardecer en el parque térmico"
                 fill
                 className="object-cover"
-                style={{ objectPosition: 'center 62%' }}
+                style={{ objectPosition: 'center 42%' }}
                 sizes="(max-width:1024px) 100vw, 66vw"
                 quality={92}
               />
