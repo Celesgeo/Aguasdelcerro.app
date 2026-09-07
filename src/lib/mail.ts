@@ -74,14 +74,11 @@ export function isMailConfigured(): boolean {
 
 /** Primer proveedor que se intenta. Resend free no se usa: su cuota diaria tumba el formulario. */
 export function getActiveMailProvider(): MailProvider | null {
-  if (getWeb3FormsKey()) return 'web3forms';
-  if (getSmtpConfig()) return 'smtp';
   return 'formsubmit';
 }
 
 export function supportsCvEmailAttachment(): boolean {
-  const provider = getActiveMailProvider();
-  return provider === 'resend' || provider === 'smtp';
+  return true;
 }
 
 function errorMessage(error: unknown): string {
@@ -227,36 +224,41 @@ async function sendViaResend(params: CareerEmailParams, apiKey: string, from: st
 }
 
 /**
- * HTTPS de respaldo sin API key. El primer envío pide confirmar el mail destino.
+ * HTTPS de respaldo. FormSubmit adjunta archivos solo con multipart, no con JSON/AJAX.
  */
 async function sendViaFormSubmit(params: CareerEmailParams): Promise<void> {
-  const { to, subject, textBody } = buildEmailContent(params, { cvAttached: false });
+  const { to, subject, textBody } = buildEmailContent(params, { cvAttached: true });
+  const filename = cvAttachmentFilename(params);
+  const body = new FormData();
+  body.append('name', params.nombre);
+  body.append('email', params.email);
+  body.append('phone', params.telefono);
+  body.append('localidad', params.localidad);
+  body.append('puesto', getCareerPositionLabel(params.puesto));
+  body.append('message', textBody);
+  body.append('_subject', subject);
+  body.append('_template', 'table');
+  body.append('_captcha', 'false');
+  body.append(
+    'attachment',
+    new Blob([new Uint8Array(params.cvBuffer)], {
+      type: params.cvMimeType || 'application/octet-stream',
+    }),
+    filename,
+  );
 
-  const response = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(to)}`, {
+  const response = await fetch(`https://formsubmit.co/${encodeURIComponent(to)}`, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
       Origin: SITE_ORIGIN,
       Referer: `${SITE_ORIGIN}/trabaja-con-nosotros`,
     },
-    body: JSON.stringify({
-      name: params.nombre,
-      email: params.email,
-      phone: params.telefono,
-      localidad: params.localidad,
-      puesto: getCareerPositionLabel(params.puesto),
-      _subject: subject,
-      message: textBody,
-      _template: 'table',
-      _captcha: 'false',
-    }),
+    body,
+    redirect: 'manual',
   });
 
-  const result = await readJson(response);
-  const success = result?.success === true || result?.success === 'true';
-  if (!response.ok || !success) {
-    throw new Error(String(result?.message ?? `FormSubmit rechazó el envío (${response.status})`));
+  if (response.status >= 400) {
+    throw new Error(`FormSubmit rechazó el envío (${response.status})`);
   }
 }
 
@@ -341,6 +343,15 @@ async function tryResend(params: CareerEmailParams, errors: string[]): Promise<b
 export async function sendCareerApplicationEmail(params: CareerEmailParams): Promise<void> {
   const errors: string[] = [];
 
+  try {
+    await sendViaFormSubmit(params);
+    return;
+  } catch (error) {
+    const message = errorMessage(error);
+    console.error('[mail] FormSubmit falló:', message);
+    errors.push(`formsubmit: ${message}`);
+  }
+
   const web3Key = getWeb3FormsKey();
   if (web3Key) {
     try {
@@ -351,15 +362,6 @@ export async function sendCareerApplicationEmail(params: CareerEmailParams): Pro
       console.error('[mail] Web3Forms falló:', message);
       errors.push(`web3forms: ${message}`);
     }
-  }
-
-  try {
-    await sendViaFormSubmit(params);
-    return;
-  } catch (error) {
-    const message = errorMessage(error);
-    console.error('[mail] FormSubmit falló:', message);
-    errors.push(`formsubmit: ${message}`);
   }
 
   const smtp = getSmtpConfig();

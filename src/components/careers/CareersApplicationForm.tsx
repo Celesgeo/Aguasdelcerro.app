@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { CheckCircle2, FileUp, Loader2 } from 'lucide-react';
 import Button from '@/components/shared/Button';
@@ -41,12 +41,6 @@ function validateCvFile(file: File | undefined): string | true {
   return true;
 }
 
-type FormSubmitResult = { success?: boolean | string; message?: string };
-
-function isFormSubmitOk(result: FormSubmitResult | null): boolean {
-  return result?.success === true || result?.success === 'true';
-}
-
 function buildApplicationMessage(data: CareersFormData, puestoLabel: string, cvName: string): string {
   return [
     `Nueva postulación laboral — ${SITE.name}`,
@@ -56,90 +50,55 @@ function buildApplicationMessage(data: CareersFormData, puestoLabel: string, cvN
     `Email: ${data.email}`,
     `Localidad: ${data.localidad}`,
     `Puesto: ${puestoLabel}`,
-    `Archivo CV: ${cvName}`,
+    `CV adjunto: ${cvName}`,
     '',
     'Presentación / experiencia:',
     data.presentacion,
   ].join('\n');
 }
 
-async function submitViaFormSubmit(
-  data: CareersFormData,
-  cvFile: File,
-  includeCv: boolean,
-): Promise<boolean> {
+function appendHidden(form: HTMLFormElement, name: string, value: string) {
+  const input = document.createElement('input');
+  input.type = 'hidden';
+  input.name = name;
+  input.value = value;
+  form.appendChild(input);
+}
+
+/** FormSubmit solo adjunta archivos con POST HTML nativo, no con AJAX/JSON. */
+function submitViaFormSubmitWithCv(data: CareersFormData, cvFile: File): void {
   const puestoLabel = getCareerPositionLabel(data.puesto);
-  const body = new FormData();
-  body.append('name', data.nombre);
-  body.append('email', data.email);
-  body.append('phone', data.telefono);
-  body.append('localidad', data.localidad);
-  body.append('puesto', puestoLabel);
-  body.append('message', buildApplicationMessage(data, puestoLabel, cvFile.name));
-  body.append('_subject', `[Postulación] ${puestoLabel} — ${data.nombre}`);
-  body.append('_template', 'table');
-  body.append('_captcha', 'false');
-  if (includeCv) {
-    body.append('attachment', cvFile, cvFile.name);
-  }
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = `https://formsubmit.co/${getPublicCareersNotifyEmail()}`;
+  form.enctype = 'multipart/form-data';
+  form.acceptCharset = 'UTF-8';
+  form.style.display = 'none';
 
-  const response = await fetch(
-    `https://formsubmit.co/ajax/${encodeURIComponent(getPublicCareersNotifyEmail())}`,
-    { method: 'POST', headers: { Accept: 'application/json' }, body },
-  );
-  const result = (await response.json().catch(() => null)) as FormSubmitResult | null;
-  return isFormSubmitOk(result);
-}
+  appendHidden(form, 'name', data.nombre);
+  appendHidden(form, 'email', data.email);
+  appendHidden(form, 'phone', data.telefono);
+  appendHidden(form, 'localidad', data.localidad);
+  appendHidden(form, 'puesto', puestoLabel);
+  appendHidden(form, 'message', buildApplicationMessage(data, puestoLabel, cvFile.name));
+  appendHidden(form, '_subject', `[Postulación] ${puestoLabel} — ${data.nombre}`);
+  appendHidden(form, '_template', 'table');
+  appendHidden(form, '_captcha', 'false');
+  appendHidden(form, '_next', `${window.location.origin}/trabaja-con-nosotros?enviado=1`);
 
-async function submitViaCareersApi(
-  data: CareersFormData,
-  cvFile: File,
-  startedAt: number,
-): Promise<boolean> {
-  const body = new FormData();
-  body.append('nombre', data.nombre);
-  body.append('telefono', data.telefono);
-  body.append('email', data.email);
-  body.append('localidad', data.localidad);
-  body.append('puesto', data.puesto);
-  body.append('presentacion', data.presentacion);
-  body.append('_gotcha', data._gotcha ?? '');
-  body.append('_startedAt', String(startedAt));
-  body.append('cv', cvFile);
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.name = 'attachment';
+  const transfer = new DataTransfer();
+  transfer.items.add(cvFile);
+  fileInput.files = transfer.files;
+  form.appendChild(fileInput);
 
-  const response = await fetch('/api/careers', { method: 'POST', body });
-  const result = (await response.json().catch(() => null)) as { ok?: boolean } | null;
-  return Boolean(result?.ok);
-}
-
-async function submitCareerForm(
-  data: CareersFormData,
-  cvFile: File,
-  startedAt: number,
-): Promise<boolean> {
-  if (data._gotcha) return true;
-
-  try {
-    if (await submitViaFormSubmit(data, cvFile, true)) return true;
-  } catch {
-    // FormSubmit con adjunto puede fallar en el plan free; reintentamos sin archivo.
-  }
-
-  try {
-    if (await submitViaFormSubmit(data, cvFile, false)) return true;
-  } catch {
-    // Sigue el respaldo del servidor, sin Resend.
-  }
-
-  try {
-    return await submitViaCareersApi(data, cvFile, startedAt);
-  } catch {
-    return false;
-  }
+  document.body.appendChild(form);
+  form.submit();
 }
 
 function CareersFormFields({ onSuccess }: { onSuccess: (message: string) => void }) {
-  const [startedAt] = useState(() => Date.now());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [cvError, setCvError] = useState<string | null>(null);
@@ -187,18 +146,16 @@ function CareersFormFields({ onSuccess }: { onSuccess: (message: string) => void
     setIsSubmitting(true);
 
     try {
-      const sent = await submitCareerForm(data, cvFile!, startedAt);
-      if (!sent) {
-        setSubmitError('No se pudo enviar la postulación. Esperá un momento e intentá de nuevo.');
+      if (data._gotcha) {
+        onSuccess(
+          '¡Gracias! Recibimos tu postulación. Nos contactaremos si tu perfil encaja con la búsqueda.',
+        );
         return;
       }
 
-      onSuccess(
-        '¡Gracias! Recibimos tu postulación. Nos contactaremos si tu perfil encaja con la búsqueda.',
-      );
+      submitViaFormSubmitWithCv(data, cvFile!);
     } catch {
       setSubmitError('Error de conexión. Verificá tu internet e intentá de nuevo.');
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -375,6 +332,16 @@ function CareersFormFields({ onSuccess }: { onSuccess: (message: string) => void
 export default function CareersApplicationForm() {
   const [formKey, setFormKey] = useState(0);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('enviado') !== '1') return;
+
+    setSuccessMessage(
+      '¡Gracias! Recibimos tu postulación. Nos contactaremos si tu perfil encaja con la búsqueda.',
+    );
+    window.history.replaceState({}, '', '/trabaja-con-nosotros');
+  }, []);
 
   if (successMessage) {
     return (
