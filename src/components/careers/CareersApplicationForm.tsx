@@ -65,35 +65,45 @@ async function submitViaFormSubmitAjax(
   cvFile: File | null,
 ): Promise<{ ok: boolean; error?: string }> {
   const puestoLabel = getCareerPositionLabel(data.puesto);
-  const response = await fetch(`https://formsubmit.co/ajax/${getPublicCareersNotifyEmail()}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    },
-    body: JSON.stringify({
-      name: data.nombre,
-      email: data.email,
-      phone: data.telefono,
-      localidad: data.localidad,
-      puesto: puestoLabel,
-      message: buildApplicationMessage(data, puestoLabel, cvFile?.name),
-      _subject: `[Postulación] ${puestoLabel} — ${data.nombre}`,
-      _template: 'table',
-      _captcha: 'false',
-    }),
-  });
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), 8000);
 
-  const result = (await response.json().catch(() => null)) as {
-    success?: boolean | string;
-    message?: string;
-  } | null;
+  try {
+    const response = await fetch(`https://formsubmit.co/ajax/${getPublicCareersNotifyEmail()}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        name: data.nombre,
+        email: data.email,
+        phone: data.telefono,
+        localidad: data.localidad,
+        puesto: puestoLabel,
+        message: buildApplicationMessage(data, puestoLabel, cvFile?.name),
+        _subject: `[Postulación] ${puestoLabel} — ${data.nombre}`,
+        _template: 'table',
+        _captcha: 'false',
+      }),
+    });
 
-  const ok = result?.success === true || result?.success === 'true';
-  if (ok) return { ok: true };
+    const result = (await response.json().catch(() => null)) as {
+      success?: boolean | string;
+      message?: string;
+    } | null;
 
-  const raw = String(result?.message ?? `FormSubmit rechazó el envío (${response.status})`);
-  return { ok: false, error: explainCareersMailError(raw) };
+    const ok = result?.success === true || result?.success === 'true';
+    if (ok) return { ok: true };
+
+    const raw = String(result?.message ?? `FormSubmit rechazó el envío (${response.status})`);
+    return { ok: false, error: explainCareersMailError(raw) };
+  } catch {
+    return { ok: false, error: 'No se pudo enviar la postulación. Esperá un momento e intentá de nuevo.' };
+  } finally {
+    window.clearTimeout(timer);
+  }
 }
 
 async function bumpApplicationCount(): Promise<number | null> {
@@ -172,11 +182,6 @@ function CareersFormFields({
         onSuccess(
           '¡Gracias! Recibimos tu postulación. Nos contactaremos si tu perfil encaja con la búsqueda.',
         );
-        return;
-      }
-
-      if (browserSend.error && !browserSend.error.startsWith('No se pudo enviar la postulación. Esperá')) {
-        setSubmitError(browserSend.error);
         return;
       }
 
@@ -418,17 +423,20 @@ export default function CareersApplicationForm() {
     highlightTimer.current = window.setTimeout(() => setHighlight(false), 1600);
   };
 
-  const handleSuccess = async (
+  const handleSuccess = (
     message: string,
     options?: { count?: number; skipCount?: boolean },
   ) => {
+    setSuccessMessage(message);
     if (typeof options?.count === 'number') {
       pulseTo(options.count);
-    } else if (!options?.skipCount) {
-      const next = await bumpApplicationCount();
-      pulseTo(next ?? countRef.current + 1);
+      return;
     }
-    setSuccessMessage(message);
+    if (options?.skipCount) return;
+    pulseTo(countRef.current + 1);
+    void bumpApplicationCount().then((next) => {
+      if (typeof next === 'number') setCount(next);
+    });
   };
 
   return (

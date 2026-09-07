@@ -43,8 +43,7 @@ export async function incrementApplicationCount(): Promise<number> {
     })
     .catch(() => undefined);
 
-  await writeChain;
-  return memoryCount ?? next;
+  return next;
 }
 
 export async function ensureCareersDir(): Promise<void> {
