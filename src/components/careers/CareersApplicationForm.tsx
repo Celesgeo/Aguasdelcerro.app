@@ -10,13 +10,9 @@ import {
   CAREERS_POSITIONS,
   CV_ALLOWED_EXTENSIONS,
   CV_MAX_BYTES,
-  explainCareersMailError,
-  getCareerPositionLabel,
   getFileExtension,
-  getPublicCareersNotifyEmail,
   isAllowedCvExtension,
 } from '@/lib/careers';
-import { SITE } from '@/lib/constants';
 
 interface CareersFormData {
   nombre: string;
@@ -42,68 +38,6 @@ function validateCvFile(file: File | undefined): string | true {
   }
 
   return true;
-}
-
-function buildApplicationMessage(data: CareersFormData, puestoLabel: string, cvName?: string): string {
-  return [
-    `Nueva postulación laboral — ${SITE.name}`,
-    '',
-    `Nombre: ${data.nombre}`,
-    `Teléfono: ${data.telefono}`,
-    `Email: ${data.email}`,
-    `Localidad: ${data.localidad}`,
-    `Puesto: ${puestoLabel}`,
-    cvName ? `CV subido en la web: ${cvName}` : 'CV: no adjuntó archivo',
-    '',
-    'Presentación / experiencia:',
-    data.presentacion,
-  ].join('\n');
-}
-
-async function submitViaFormSubmitAjax(
-  data: CareersFormData,
-  cvFile: File | null,
-): Promise<{ ok: boolean; error?: string }> {
-  const puestoLabel = getCareerPositionLabel(data.puesto);
-  const controller = new AbortController();
-  const timer = window.setTimeout(() => controller.abort(), 8000);
-
-  try {
-    const response = await fetch(`https://formsubmit.co/ajax/${getPublicCareersNotifyEmail()}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      signal: controller.signal,
-      body: JSON.stringify({
-        name: data.nombre,
-        email: data.email,
-        phone: data.telefono,
-        localidad: data.localidad,
-        puesto: puestoLabel,
-        message: buildApplicationMessage(data, puestoLabel, cvFile?.name),
-        _subject: `[Postulación] ${puestoLabel} — ${data.nombre}`,
-        _template: 'table',
-        _captcha: 'false',
-      }),
-    });
-
-    const result = (await response.json().catch(() => null)) as {
-      success?: boolean | string;
-      message?: string;
-    } | null;
-
-    const ok = result?.success === true || result?.success === 'true';
-    if (ok) return { ok: true };
-
-    const raw = String(result?.message ?? `FormSubmit rechazó el envío (${response.status})`);
-    return { ok: false, error: explainCareersMailError(raw) };
-  } catch {
-    return { ok: false, error: 'No se pudo enviar la postulación. Esperá un momento e intentá de nuevo.' };
-  } finally {
-    window.clearTimeout(timer);
-  }
 }
 
 async function bumpApplicationCount(): Promise<number | null> {
@@ -177,14 +111,6 @@ function CareersFormFields({
         return;
       }
 
-      const browserSend = await submitViaFormSubmitAjax(data, cvFile);
-      if (browserSend.ok) {
-        onSuccess(
-          '¡Gracias! Recibimos tu postulación. Nos contactaremos si tu perfil encaja con la búsqueda.',
-        );
-        return;
-      }
-
       const body = new FormData();
       body.append('nombre', data.nombre);
       body.append('telefono', data.telefono);
@@ -214,9 +140,7 @@ function CareersFormFields({
       }
 
       setSubmitError(
-        result?.error ??
-          browserSend.error ??
-          'No se pudo enviar la postulación. Esperá un momento e intentá de nuevo.',
+        result?.error ?? 'No se pudo enviar la postulación. Esperá un momento e intentá de nuevo.',
       );
     } catch {
       setSubmitError('Error de conexión. Verificá tu internet e intentá de nuevo.');
@@ -342,6 +266,7 @@ function CareersFormFields({
       </div>
 
       <div>
+      <div className="relative">
         <label
           htmlFor="cv"
           className="flex flex-col sm:flex-row sm:items-center gap-3 w-full border border-dashed border-brand-brown/25 bg-white px-4 py-5 cursor-pointer hover:border-brand-gold/60 transition-colors"
@@ -357,15 +282,16 @@ function CareersFormFields({
               PDF, Word o imagen · Máx. 5 MB · {formatAllowedFormats()}
             </span>
           </span>
-          <input
-            ref={fileInputRef}
-            id="cv"
-            type="file"
-            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/webp"
-            className="sr-only"
-            onChange={onCvChange}
-          />
         </label>
+        <input
+          ref={fileInputRef}
+          id="cv"
+          type="file"
+          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/webp"
+          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+          onChange={onCvChange}
+        />
+      </div>
         {cvError && <p className="text-red-600 text-xs mt-1">{cvError}</p>}
       </div>
 

@@ -46,7 +46,7 @@ function getSmtpConfig(): SmtpConfig | null {
   const rawPass = process.env.SMTP_PASS?.trim();
   if (!rawPass) return null;
   const pass = rawPass.replace(/\s+/g, '');
-  const user = process.env.SMTP_USER?.trim() || SITE.email;
+  const user = process.env.SMTP_USER?.trim() || ACTIVE_CAREERS_INBOX;
   // contacto@aguasdelcerro.net todavía no está activo.
   if (user.toLowerCase().endsWith('@aguasdelcerro.net')) return null;
   const host = process.env.SMTP_HOST?.trim() || 'smtp.gmail.com';
@@ -83,13 +83,16 @@ export function isMailConfigured(): boolean {
   return getActiveMailProvider() !== null;
 }
 
-/** Primer proveedor que se intenta. Resend free no se usa: su cuota diaria tumba el formulario. */
+/** Primer canal con chance real de adjuntar el CV. */
 export function getActiveMailProvider(): MailProvider | null {
+  if (getSmtpConfig()) return 'smtp';
+  if (getResendKey() && !isResendQuotaBlocked()) return 'resend';
+  if (getWeb3FormsKey()) return 'web3forms';
   return 'formsubmit';
 }
 
 export function supportsCvEmailAttachment(): boolean {
-  return true;
+  return Boolean(getSmtpConfig() || (getResendKey() && !isResendQuotaBlocked()));
 }
 
 function errorMessage(error: unknown): string {
@@ -203,7 +206,8 @@ async function sendViaWeb3Forms(params: CareerEmailParams, accessKey: string): P
 }
 
 async function sendViaResend(params: CareerEmailParams, apiKey: string, from: string): Promise<void> {
-  const { to, subject, htmlBody, textBody } = buildEmailContent(params);
+  const hasCv = params.cvBuffer.length > 0;
+  const { to, subject, htmlBody, textBody } = buildEmailContent(params, { cvAttached: hasCv });
   const safeFilename = cvAttachmentFilename(params);
 
   const response = await fetch('https://api.resend.com/emails', {
@@ -219,12 +223,16 @@ async function sendViaResend(params: CareerEmailParams, apiKey: string, from: st
       subject,
       html: htmlBody,
       text: textBody,
-      attachments: [
-        {
-          filename: safeFilename,
-          content: params.cvBuffer.toString('base64'),
-        },
-      ],
+      ...(params.cvBuffer.length > 0
+        ? {
+            attachments: [
+              {
+                filename: safeFilename,
+                content: params.cvBuffer.toString('base64'),
+              },
+            ],
+          }
+        : {}),
     }),
   });
 
@@ -353,27 +361,6 @@ async function tryResend(params: CareerEmailParams, errors: string[]): Promise<b
 export async function sendCareerApplicationEmail(params: CareerEmailParams): Promise<void> {
   const errors: string[] = [];
 
-  try {
-    await sendViaFormSubmit(params);
-    return;
-  } catch (error) {
-    const message = errorMessage(error);
-    console.error('[mail] FormSubmit falló:', message);
-    errors.push(`formsubmit: ${message}`);
-  }
-
-  const web3Key = getWeb3FormsKey();
-  if (web3Key) {
-    try {
-      await sendViaWeb3Forms(params, web3Key);
-      return;
-    } catch (error) {
-      const message = errorMessage(error);
-      console.error('[mail] Web3Forms falló:', message);
-      errors.push(`web3forms: ${message}`);
-    }
-  }
-
   const smtp = getSmtpConfig();
   if (smtp) {
     try {
@@ -387,6 +374,27 @@ export async function sendCareerApplicationEmail(params: CareerEmailParams): Pro
   }
 
   if (await tryResend(params, errors)) return;
+
+  const web3Key = getWeb3FormsKey();
+  if (web3Key) {
+    try {
+      await sendViaWeb3Forms(params, web3Key);
+      return;
+    } catch (error) {
+      const message = errorMessage(error);
+      console.error('[mail] Web3Forms falló:', message);
+      errors.push(`web3forms: ${message}`);
+    }
+  }
+
+  try {
+    await sendViaFormSubmit(params);
+    return;
+  } catch (error) {
+    const message = errorMessage(error);
+    console.error('[mail] FormSubmit falló:', message);
+    errors.push(`formsubmit: ${message}`);
+  }
 
   throw new Error(errors.length ? errors.join(' | ') : 'Email no configurado');
 }
