@@ -35,13 +35,13 @@ export function getPublicCareersNotifyEmail(): string {
 
 export function explainCareersMailError(raw: string): string {
   if (/activat|confirm your|check your email|inbox|activar/i.test(raw)) {
-    return 'Hay que activar el envío. Abrí el mail de FormSubmit en contacto@aguasdelcerro.net (y en spam) y tocá el enlace. Es un solo clic, de tu lado; los postulantes no ven esa pantalla.';
+    return 'Hay que activar el envío. Abrí Gmail (celesteorellano14@gmail.com) y tocá el enlace de FormSubmit. Es un solo clic. Después volvé a enviar la postulación.';
   }
   if (/quota exceeded|daily quota/i.test(raw)) {
-    return 'El servicio de mail llegó al límite del día. Probá de nuevo mañana o activá FormSubmit desde el mail de contacto@.';
+    return 'El servicio de mail llegó al límite del día. Activá FormSubmit desde Gmail y volvé a intentar.';
   }
   if (/econnrefused|etimedout|ehlo|invalid login|authentication/i.test(raw)) {
-    return 'No se pudo conectar al correo. Revisá en Railway las variables SMTP_USER y SMTP_PASS, o activá FormSubmit desde el mail de contacto@.';
+    return 'No se pudo enviar al correo. Revisá Gmail: FormSubmit te puede haber mandado un enlace para activar el formulario.';
   }
   return 'No se pudo enviar la postulación. Esperá un momento e intentá de nuevo.';
 }

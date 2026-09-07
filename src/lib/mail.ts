@@ -22,8 +22,17 @@ type SmtpConfig = {
   auth: { user: string; pass: string };
 };
 
+const ACTIVE_CAREERS_INBOX = 'celesteorellano14@gmail.com';
 const SITE_ORIGIN = `https://${SITE.publicHost}`;
 const RESEND_TEST_FROM = `${SITE.name} <onboarding@resend.dev>`;
+
+function getCareersNotifyEmail(): string {
+  const configured = process.env.CAREERS_NOTIFY_EMAIL?.trim();
+  if (configured && !configured.toLowerCase().endsWith('@aguasdelcerro.net')) {
+    return configured;
+  }
+  return ACTIVE_CAREERS_INBOX;
+}
 
 function getWeb3FormsKey(): string | null {
   return process.env.WEB3FORMS_ACCESS_KEY?.trim() || null;
@@ -38,6 +47,8 @@ function getSmtpConfig(): SmtpConfig | null {
   if (!rawPass) return null;
   const pass = rawPass.replace(/\s+/g, '');
   const user = process.env.SMTP_USER?.trim() || SITE.email;
+  // contacto@aguasdelcerro.net todavía no está activo.
+  if (user.toLowerCase().endsWith('@aguasdelcerro.net')) return null;
   const host = process.env.SMTP_HOST?.trim() || 'smtp.gmail.com';
   const port = Number(process.env.SMTP_PORT ?? '465');
 
@@ -143,7 +154,7 @@ function buildEmailContent(params: CareerEmailParams, options?: { cvAttached?: b
 
   return {
     puestoLabel,
-    to: process.env.CAREERS_NOTIFY_EMAIL?.trim() || SITE.email,
+    to: getCareersNotifyEmail(),
     subject: `[Postulación] ${puestoLabel} — ${params.nombre}`,
     textBody,
     htmlBody,
@@ -342,18 +353,6 @@ async function tryResend(params: CareerEmailParams, errors: string[]): Promise<b
 export async function sendCareerApplicationEmail(params: CareerEmailParams): Promise<void> {
   const errors: string[] = [];
 
-  const smtp = getSmtpConfig();
-  if (smtp) {
-    try {
-      await sendViaSmtp(params, smtp);
-      return;
-    } catch (error) {
-      const message = errorMessage(error);
-      console.error('[mail] SMTP falló:', message);
-      errors.push(`smtp: ${message}`);
-    }
-  }
-
   try {
     await sendViaFormSubmit(params);
     return;
@@ -372,6 +371,18 @@ export async function sendCareerApplicationEmail(params: CareerEmailParams): Pro
       const message = errorMessage(error);
       console.error('[mail] Web3Forms falló:', message);
       errors.push(`web3forms: ${message}`);
+    }
+  }
+
+  const smtp = getSmtpConfig();
+  if (smtp) {
+    try {
+      await sendViaSmtp(params, smtp);
+      return;
+    } catch (error) {
+      const message = errorMessage(error);
+      console.error('[mail] SMTP falló:', message);
+      errors.push(`smtp: ${message}`);
     }
   }
 
