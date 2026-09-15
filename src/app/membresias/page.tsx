@@ -180,9 +180,11 @@ export default function MembresiasPage() {
       <section className="pt-32 pb-16 px-6 lg:px-10">
         <div className="mx-auto max-w-4xl">
           <SectionHeading
-            eyebrow="Membresías"
-            title="Más experiencias, mejor valor"
-            description="Planes anuales transferibles y acumulables. Usá varias experiencias el mismo día con amigos y disfrutá beneficios exclusivos."
+            i18n={{
+              eyebrow: 'pages.memberships.kicker',
+              title: 'pages.memberships.title',
+              description: 'pages.memberships.description',
+            }}
           />
         </div>
       </section>
@@ -198,9 +200,11 @@ export default function MembresiasPage() {
       <section id="empresas" className="pb-24 px-6 lg:px-10 scroll-mt-24">
         <div className="mx-auto max-w-4xl mb-12">
           <SectionHeading
-            eyebrow="Empresas fundadoras"
-            title="Sé parte del origen"
-            description="Planes en dólares estadounidenses (USD). Incluyen pases fundadores, experiencias para clientes o equipos, publicidad en el predio y nombramiento en la placa de fundadores."
+            i18n={{
+              eyebrow: 'pages.memberships.companiesKicker',
+              title: 'pages.memberships.companiesTitle',
+              description: 'pages.memberships.companiesDescription',
+            }}
           />
         </div>
         <div className="mx-auto max-w-7xl grid gap-6 lg:grid-cols-3">
@@ -219,9 +223,11 @@ export default function MembresiasPage() {
         <div className="mx-auto max-w-4xl">
           <SectionHeading
             light
-            eyebrow="Consulta"
-            title="Escribinos por WhatsApp"
-            description="Si preferís pagar online, usá “Pagar ahora” en el plan. Si tenés dudas o querés plan empresa, completá el formulario y te abrimos WhatsApp con tu consulta lista."
+            i18n={{
+              eyebrow: 'pages.memberships.inquiryKicker',
+              title: 'pages.memberships.inquiryTitle',
+              description: 'pages.memberships.inquiryDescription',
+            }}
           />
           <div className="mt-4 rounded-sm bg-brand-cream/95 p-6 md:p-10">
             <MembershipInquiryForm />
@@ -232,9 +238,11 @@ export default function MembresiasPage() {
       <section id="descarga" className="py-24 px-6 lg:px-10 scroll-mt-24">
         <div className="mx-auto max-w-4xl">
           <SectionHeading
-            eyebrow="Descarga"
-            title="Tu carnet de socio"
-            description="Ingresá el código único de 5 dígitos emitido por Aguas del Cerro para descargar tu membresía con número de socio y vigencia."
+            i18n={{
+              eyebrow: 'pages.memberships.downloadKicker',
+              title: 'pages.memberships.downloadTitle',
+              description: 'pages.memberships.downloadDescription',
+            }}
           />
           <MembershipDownload />
         </div>

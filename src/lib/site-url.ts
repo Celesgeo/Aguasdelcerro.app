@@ -36,6 +36,8 @@ export function shouldRedirectToCanonical(requestHost: string): boolean {
   const canonicalHost = getCanonicalHost();
 
   if (host === canonicalHost) return false;
+  // Local preview must stay on this machine; Railway/Vercel still redirect to www.
+  if (host === 'localhost' || host === '127.0.0.1') return false;
   if (!isProvisionalHost(host)) return false;
   return !isProvisionalHost(canonicalHost);
 }

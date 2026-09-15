@@ -1,0 +1,180 @@
+.intro {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  width: 100vw;
+  height: 100dvh;
+  min-height: 100svh;
+  overflow: hidden;
+  isolation: isolate;
+  pointer-events: none;
+  background: #070d12;
+}
+
+.leaving {
+  animation: introFade 0.8s ease forwards;
+}
+
+.stage {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 48%;
+  animation: kenBurns 3s linear forwards;
+}
+
+.waterCanvas,
+.waterPhoto {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.waterPhoto {
+  object-fit: cover;
+  object-position: center;
+}
+
+.gold {
+  position: absolute;
+  inset: -8%;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 16% 58% at 68% 40%, rgba(232, 176, 74, 0.2) 0%, transparent 72%),
+    radial-gradient(ellipse 28% 18% at 62% 62%, rgba(198, 161, 91, 0.12) 0%, transparent 70%);
+  mix-blend-mode: screen;
+  animation: goldDrift 8s ease-in-out infinite;
+}
+
+.markWrap {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6vh 4vw;
+}
+
+.mark {
+  position: relative;
+  z-index: 3;
+  display: block;
+  width: min(94vw, 72rem);
+  height: auto;
+}
+
+.steam,
+.steamB {
+  position: absolute;
+  z-index: 2;
+  left: 29%;
+  top: 24%;
+  width: 14%;
+  height: 26%;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 80%, rgba(246, 240, 231, 0.16) 0%, transparent 68%);
+  animation: steamRise 3.2s ease-in-out infinite;
+}
+
+.steamB {
+  left: 33%;
+  top: 20%;
+  width: 11%;
+  height: 22%;
+  opacity: 0.7;
+  animation-delay: 1.1s;
+  animation-duration: 3.8s;
+}
+
+@keyframes kenBurns {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.025);
+  }
+}
+
+@keyframes goldDrift {
+  0%,
+  100% {
+    transform: translate(0, 0);
+    opacity: 0.7;
+  }
+  50% {
+    transform: translate(-2.2%, 1.4%);
+    opacity: 1;
+  }
+}
+
+@keyframes steamRise {
+  0%,
+  100% {
+    transform: translateY(8%) scale(0.92);
+    opacity: 0.12;
+  }
+  50% {
+    transform: translateY(-18%) scale(1.08);
+    opacity: 0.28;
+  }
+}
+
+@keyframes introFade {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+.reduced .stage,
+.reduced .gold,
+.reduced .steam,
+.reduced .steamB {
+  animation: none;
+}
+
+.reduced .stage {
+  transform: none;
+}
+
+.reduced.leaving {
+  animation: introFade 0.45s ease forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage,
+  .gold,
+  .steam,
+  .steamB {
+    animation: none;
+  }
+
+  .stage {
+    transform: none;
+  }
+
+  .leaving {
+    animation: introFade 0.45s ease forwards;
+  }
+}
+
+@media (max-width: 720px) {
+  .mark {
+    width: min(96vw, 44rem);
+  }
+
+  .markWrap {
+    padding: 10vh 3vw 8vh;
+  }
+
+  .steam,
+  .steamB {
+    left: 26%;
+    top: 26%;
+  }
+}

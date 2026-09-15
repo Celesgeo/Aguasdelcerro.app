@@ -3,6 +3,8 @@ import ExperienceSection from '@/components/home/ExperienceSection';
 import TermasSection from '@/components/home/TermasSection';
 import MiradorSection from '@/components/home/MiradorSection';
 import ExperiencesGrid from '@/components/home/ExperiencesGrid';
+import ExperienceMarqueeGallery from '@/components/home/ExperienceMarqueeGallery';
+import BrandPhraseMarquee from '@/components/home/BrandPhraseMarquee';
 import CountdownSection from '@/components/home/CountdownSection';
 import WeatherWidget from '@/components/home/WeatherWidget';
 import MapSection from '@/components/home/MapSection';
@@ -15,19 +17,20 @@ import {
 import InstagramButton from '@/components/shared/InstagramButton';
 import InstagramGallery from '@/components/shared/InstagramGallery';
 import SectionHeading from '@/components/shared/SectionHeading';
-import { getHeroMedia, getSectionMedia } from '@/lib/media';
+import { getSectionMedia } from '@/lib/media';
 
 export default function HomePage() {
-  const hero = getHeroMedia();
   const sections = getSectionMedia();
 
   return (
-    <>
-      <Hero videoSrc={hero.video} fallbackImage={hero.fallbackImage} slides={hero.slides} />
+    <div className="overflow-x-clip">
+      <Hero image="/images/real/real-termas-atardecer.jpg" />
       <ExperienceSection />
       <TermasSection />
       <MiradorSection image={sections.mirador} />
       <ExperiencesGrid />
+      <ExperienceMarqueeGallery />
+      <BrandPhraseMarquee />
       <CountdownSection />
       <WeatherWidget />
       <WhyUsSection />
@@ -36,9 +39,11 @@ export default function HomePage() {
         <div className="mx-auto max-w-6xl px-6 lg:px-10">
           <SectionHeading
             light
-            eyebrow="Instagram"
-            title="La experiencia en imágenes"
-            description="Termas, mirador y paisajes riojanos. Seguinos para ver novedades y momentos del día a día."
+            i18n={{
+              eyebrow: 'home.instagramKicker',
+              title: 'home.instagramTitle',
+              description: 'home.instagramDescription',
+            }}
           />
           <InstagramGallery />
           <div className="mt-12 text-center">
@@ -49,6 +54,6 @@ export default function HomePage() {
       <MapSection />
       <FAQSection />
       <TestimonialsSection />
-    </>
+    </div>
   );
 }

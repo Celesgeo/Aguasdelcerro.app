@@ -8,21 +8,28 @@ import { Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { NAV_LINKS, SITE } from '@/lib/constants';
 import Button from '@/components/shared/Button';
+import LanguageSwitch from '@/components/i18n/LanguageSwitch';
+import { useT } from '@/components/i18n/LanguageProvider';
 
-/** En desktop el logo va al inicio y el botón a reservas; acá van el resto. */
-const HEADER_NAV_LINKS = NAV_LINKS.filter(
-  (link) => link.href !== '/' && link.href !== '/reservas',
-);
+const HEADER_NAV_LINKS = NAV_LINKS.filter((link) => link.href !== '/' && link.href !== '/reservas');
 
-function headerLinkLabel(label: string, href: string): string {
-  if (href === '/trabaja-con-nosotros') return 'Trabajá';
-  return label;
-}
+const NAV_KEYS: Record<string, string> = {
+  '/': 'nav.home',
+  '/experiencias': 'nav.experiences',
+  '/termas': 'nav.termas',
+  '/membresias': 'nav.memberships',
+  '/gastronomia': 'nav.gastronomy',
+  '/galeria': 'nav.gallery',
+  '/contacto': 'nav.contact',
+  '/reservas': 'nav.reservations',
+  '/trabaja-con-nosotros': 'nav.careers',
+};
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const t = useT();
   const isHome = pathname === '/';
   const isAdmin = pathname.startsWith('/admin');
 
@@ -39,47 +46,59 @@ export default function Navbar() {
 
   const solid = scrolled || !isHome;
 
+  const labelFor = (href: string, short = false) => {
+    if (short && href === '/trabaja-con-nosotros') return t('nav.careersShort');
+    return t(NAV_KEYS[href] ?? href);
+  };
+
   return (
     <header
       className={`fixed inset-x-0 top-0 z-50 transition-all duration-700 ${
         solid
           ? 'bg-brand-brown/90 backdrop-blur-md border-b border-brand-gold/10 py-3'
-          : 'bg-transparent py-6'
+          : 'bg-[#F6F0E7]/90 backdrop-blur-md border-b border-[#263A32]/10 py-4 lg:bg-transparent lg:backdrop-blur-none lg:border-none lg:py-6'
       }`}
     >
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 lg:px-10">
         <Link href="/" className="relative z-20 flex shrink-0 items-center gap-3 min-w-0">
           <Image src="/images/logo.png" alt={SITE.name} width={52} height={52} className="rounded-full shrink-0" />
-          <span className="hidden xl:block font-display text-brand-cream text-xl tracking-wide whitespace-nowrap">
+          <span
+            className={`hidden xl:block font-display text-xl tracking-wide whitespace-nowrap ${
+              solid || !isHome ? 'text-brand-cream' : 'text-[#33271F] lg:text-[#33271F]'
+            }`}
+          >
             {SITE.name}
           </span>
         </Link>
 
-        <nav className="hidden xl:flex flex-1 items-center justify-end gap-5 min-w-0">
+        <nav className="hidden xl:flex flex-1 items-center justify-end gap-4 min-w-0">
           {HEADER_NAV_LINKS.map((link) => (
             <Link
               key={link.href}
               href={link.href}
               className={`shrink-0 text-[11px] tracking-[0.18em] uppercase font-body transition-colors whitespace-nowrap ${
-                pathname === link.href ? 'text-brand-gold' : 'text-brand-cream/80 hover:text-brand-gold'
+                pathname === link.href
+                  ? 'text-brand-gold'
+                  : solid || !isHome
+                    ? 'text-brand-cream/80 hover:text-brand-gold'
+                    : 'text-[#33271F]/75 hover:text-[#C6A15B]'
               }`}
             >
-              {headerLinkLabel(link.label, link.href)}
+              {labelFor(link.href, true)}
             </Link>
           ))}
+          <LanguageSwitch inverted={isHome && !scrolled} />
           <Button href="/reservas" variant="ghost" className="!py-2.5 !px-5 !text-xs shrink-0 ml-1">
-            Reservar
+            {t('nav.reserve')}
           </Button>
         </nav>
 
-        <button
-          type="button"
-          className="xl:hidden relative z-20 ml-auto text-brand-cream"
-          onClick={() => setOpen((v) => !v)}
-          aria-label="Menú"
-        >
-          {open ? <X size={24} /> : <Menu size={24} />}
-        </button>
+        <div className="xl:hidden relative z-20 ml-auto flex items-center gap-4">
+          <LanguageSwitch compact inverted={isHome && !scrolled} />
+          <button type="button" className={solid || !isHome ? 'text-brand-cream' : 'text-[#33271F]'} onClick={() => setOpen((v) => !v)} aria-label={t('nav.menu')}>
+            {open ? <X size={24} /> : <Menu size={24} />}
+          </button>
+        </div>
       </div>
 
       <AnimatePresence>
@@ -92,12 +111,8 @@ export default function Navbar() {
           >
             <div className="flex flex-col gap-5">
               {NAV_LINKS.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="text-sm tracking-[0.2em] uppercase text-brand-cream/90"
-                >
-                  {link.label}
+                <Link key={link.href} href={link.href} className="text-sm tracking-[0.2em] uppercase text-brand-cream/90">
+                  {labelFor(link.href)}
                 </Link>
               ))}
             </div>

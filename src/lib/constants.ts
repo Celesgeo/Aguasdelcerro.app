@@ -10,7 +10,7 @@ export const SITE = {
   whatsappPrimary: '543804910523',
   whatsappSecondary: '543804941981',
   mapsUrl: 'https://maps.app.goo.gl/aYV66QVLAFgYRHBB9?g_st=iw',
-  inaugurationDate: '2026-09-21T00:00:00-03:00',
+  inaugurationDate: '2026-10-31T00:00:00-03:00',
   coordinates: { lat: -29.345978, lng: -66.864471 },
 } as const;
 

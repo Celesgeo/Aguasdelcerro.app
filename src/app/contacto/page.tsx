@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { SITE } from '@/lib/constants';
 import JsonLd from '@/components/seo/JsonLd';
 import SectionHeading from '@/components/shared/SectionHeading';
+import Tx from '@/components/i18n/Tx';
 import { WHATSAPP_PRIMARY_URL, WHATSAPP_SECONDARY_URL } from '@/lib/whatsapp';
 import { breadcrumbJsonLd, createPageMetadata } from '@/lib/seo';
 
@@ -24,28 +25,38 @@ export default function ContactoPage() {
       />
       <div className="mx-auto max-w-3xl px-6 text-center">
         <SectionHeading
-          eyebrow="Contacto"
-          title="Estamos para acompañarte"
-          description="Escribinos y te ayudamos a planificar tu experiencia."
+          i18n={{
+            eyebrow: 'pages.contact.kicker',
+            title: 'pages.contact.title',
+            description: 'pages.contact.description',
+          }}
         />
         <div className="space-y-6 text-left mt-12">
           <a href={WHATSAPP_PRIMARY_URL} target="_blank" rel="noopener noreferrer" className="block border border-brand-brown/10 bg-white p-6 hover:border-brand-gold transition-colors">
-            <p className="text-xs uppercase tracking-[0.2em] text-brand-gold font-body">WhatsApp principal</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-brand-gold font-body">
+              <Tx k="pages.contact.whatsapp" />
+            </p>
             <p className="font-display text-2xl text-brand-brown mt-2">+54 380 4910523</p>
           </a>
           <a href={WHATSAPP_SECONDARY_URL} target="_blank" rel="noopener noreferrer" className="block border border-brand-brown/10 bg-white p-6 hover:border-brand-gold transition-colors">
-            <p className="text-xs uppercase tracking-[0.2em] text-brand-gold font-body">Contacto alternativo</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-brand-gold font-body">
+              <Tx k="pages.contact.alt" />
+            </p>
             <p className="font-display text-2xl text-brand-brown mt-2">+54 380 4941981</p>
           </a>
           <a
             href={`mailto:${SITE.email}`}
             className="block border border-brand-brown/10 bg-white p-6 hover:border-brand-gold transition-colors"
           >
-            <p className="text-xs uppercase tracking-[0.2em] text-brand-gold font-body">Email</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-brand-gold font-body">
+              <Tx k="pages.contact.email" />
+            </p>
             <p className="font-body text-brand-brown mt-2">{SITE.email}</p>
           </a>
           <a href={SITE.instagram} target="_blank" rel="noopener noreferrer" className="block border border-brand-brown/10 bg-white p-6 hover:border-brand-gold transition-colors">
-            <p className="text-xs uppercase tracking-[0.2em] text-brand-gold font-body">Instagram</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-brand-gold font-body">
+              <Tx k="pages.contact.instagram" />
+            </p>
             <p className="font-body text-brand-brown mt-2">@aguasdelcerro</p>
           </a>
         </div>

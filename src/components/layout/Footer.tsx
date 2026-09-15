@@ -7,9 +7,24 @@ import { Mail, MapPin } from 'lucide-react';
 import { FaWhatsapp, FaInstagram } from 'react-icons/fa';
 import { NAV_LINKS, SITE } from '@/lib/constants';
 import { WHATSAPP_PRIMARY_URL } from '@/lib/whatsapp';
+import { useT } from '@/components/i18n/LanguageProvider';
+import LanguageSwitch from '@/components/i18n/LanguageSwitch';
+
+const NAV_KEYS: Record<string, string> = {
+  '/': 'nav.home',
+  '/experiencias': 'nav.experiences',
+  '/termas': 'nav.termas',
+  '/membresias': 'nav.memberships',
+  '/gastronomia': 'nav.gastronomy',
+  '/galeria': 'nav.gallery',
+  '/contacto': 'nav.contact',
+  '/reservas': 'nav.reservations',
+  '/trabaja-con-nosotros': 'nav.careers',
+};
 
 export default function Footer() {
   const pathname = usePathname();
+  const t = useT();
   if (pathname.startsWith('/admin')) return null;
 
   return (
@@ -23,12 +38,12 @@ export default function Footer() {
           </div>
 
           <div>
-            <h3 className="mb-5 text-xs tracking-[0.3em] uppercase text-brand-gold font-body">Navegación</h3>
+            <h3 className="mb-5 text-xs tracking-[0.3em] uppercase text-brand-gold font-body">{t('footer.navigation')}</h3>
             <ul className="space-y-3">
               {NAV_LINKS.map((link) => (
                 <li key={link.href}>
                   <Link href={link.href} className="text-sm text-brand-cream/70 hover:text-brand-gold transition-colors font-body">
-                    {link.label}
+                    {t(NAV_KEYS[link.href] ?? link.href)}
                   </Link>
                 </li>
               ))}
@@ -36,7 +51,7 @@ export default function Footer() {
           </div>
 
           <div>
-            <h3 className="mb-5 text-xs tracking-[0.3em] uppercase text-brand-gold font-body">Contacto</h3>
+            <h3 className="mb-5 text-xs tracking-[0.3em] uppercase text-brand-gold font-body">{t('footer.contact')}</h3>
             <ul className="space-y-4 text-sm font-body text-brand-cream/70">
               <li>
                 <a href={WHATSAPP_PRIMARY_URL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 hover:text-brand-gold">
@@ -55,22 +70,25 @@ export default function Footer() {
               </li>
               <li>
                 <a href={SITE.mapsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 hover:text-brand-gold">
-                  <MapPin size={16} /> Cómo llegar
+                  <MapPin size={16} /> {t('footer.howToGet')}
                 </a>
               </li>
             </ul>
           </div>
 
           <div>
-            <h3 className="mb-5 text-xs tracking-[0.3em] uppercase text-brand-gold font-body">Experiencia</h3>
+            <h3 className="mb-5 text-xs tracking-[0.3em] uppercase text-brand-gold font-body">{t('footer.experience')}</h3>
             <p className="text-sm leading-relaxed text-brand-cream/65 font-body">
-              Un refugio de montaña donde la naturaleza, el parque térmico y la gastronomía crean momentos inolvidables.
+              {t('footer.blurb')}
             </p>
           </div>
         </div>
 
-        <div className="mt-16 border-t border-brand-gold/10 pt-8 text-center text-xs tracking-[0.15em] text-brand-cream/40 font-body">
-          © {new Date().getFullYear()} {SITE.name}. Todos los derechos reservados.
+        <div className="mt-16 border-t border-brand-gold/10 pt-8 flex flex-col items-center gap-4 text-center text-xs tracking-[0.15em] text-brand-cream/40 font-body">
+          <LanguageSwitch />
+          <p>
+            © {new Date().getFullYear()} {SITE.name}. {t('footer.rights')}
+          </p>
         </div>
       </div>
     </footer>

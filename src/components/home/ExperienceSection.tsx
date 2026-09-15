@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import SectionHeading from '@/components/shared/SectionHeading';
 import ScrollReveal from '@/components/shared/ScrollReveal';
+import Tx from '@/components/i18n/Tx';
 import { getExperienceImage } from '@/lib/experiences-media';
 
 export default function ExperienceSection() {
@@ -46,15 +47,15 @@ export default function ExperienceSection() {
           <div>
             <SectionHeading
               align="left"
-              eyebrow="Nuestra experiencia"
-              title="Donde el tiempo se detiene"
-              description="Entre montañas y silencio, cada instante invita a respirar distinto. No buscamos impresionar: buscamos que te quedes con la sensación de haber encontrado un refugio."
+              i18n={{
+                eyebrow: 'home.experienceKicker',
+                title: 'home.experienceTitle',
+                description: 'home.experienceDescription',
+              }}
             />
             <ScrollReveal delay={0.15}>
               <p className="text-brand-dark/70 leading-relaxed font-body text-lg">
-                La naturaleza riojana, el bienestar del parque térmico y la calma de un mirador que mira al horizonte se
-                combinan en una experiencia pensada para reconectar cuerpo y mente — con una puesta en escena elegante y
-                contemporánea.
+                <Tx k="home.experienceBody" />
               </p>
             </ScrollReveal>
           </div>

@@ -1,145 +1,77 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown } from 'lucide-react';
-import { SITE } from '@/lib/constants';
+import { motion } from 'framer-motion';
 import Button from '@/components/shared/Button';
-
-export interface HeroSlide {
-  src: string;
-  alt: string;
-  /** CSS object-position so the focal point stays visible */
-  position?: string;
-}
+import { useT } from '@/components/i18n/LanguageProvider';
 
 interface HeroProps {
-  videoSrc?: string | null;
-  fallbackImage: string;
-  slides?: HeroSlide[];
+  image: string;
 }
 
-const SLIDE_MS = 7000;
-
-export default function Hero({ videoSrc, fallbackImage, slides = [] }: HeroProps) {
-  const gallery =
-    slides.length > 0
-      ? slides
-      : [{ src: fallbackImage, alt: SITE.name, position: 'center 58%' }];
-
-  const [index, setIndex] = useState(0);
-  const active = gallery[index] ?? gallery[0];
-
-  useEffect(() => {
-    if (videoSrc || gallery.length < 2) return;
-    const id = window.setInterval(() => {
-      setIndex((prev) => (prev + 1) % gallery.length);
-    }, SLIDE_MS);
-    return () => window.clearInterval(id);
-  }, [videoSrc, gallery.length]);
+export default function Hero({ image }: HeroProps) {
+  const t = useT();
 
   return (
-    <section className="relative h-screen min-h-[700px] overflow-hidden">
-      {videoSrc ? (
-        <video
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="metadata"
-          className="absolute inset-0 h-full w-full object-cover scale-105"
-          poster={fallbackImage}
-        >
-          <source src={videoSrc} type="video/mp4" />
-        </video>
-      ) : (
-        <AnimatePresence mode="sync">
-          <motion.div
-            key={active.src}
-            className="absolute inset-0"
-            initial={{ opacity: 0, scale: 1.04 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 1.6, ease: [0.22, 1, 0.36, 1] }}
+    <section className="relative min-h-[100svh] bg-[#F6F0E7] pt-20 lg:pt-0">
+      <div className="grid min-h-[100svh] lg:grid-cols-12">
+        <div className="relative z-10 flex flex-col justify-center px-6 py-12 sm:px-10 lg:col-span-5 lg:px-14 xl:px-20">
+          <motion.p
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.7 }}
+            className="mb-5 text-[12px] tracking-[0.42em] uppercase text-[#C6A15B] font-body font-semibold"
           >
-            <Image
-              src={active.src}
-              alt={active.alt}
-              fill
-              priority={index === 0}
-              quality={90}
-              className="object-cover"
-              style={{ objectPosition: active.position ?? 'center 58%' }}
-              sizes="100vw"
-            />
+            {t('hero.kicker')}
+          </motion.p>
+          <motion.h1
+            initial={{ opacity: 0, y: 22 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35, duration: 0.9 }}
+            className="font-display text-[2.9rem] leading-[0.95] text-[#33271F] sm:text-6xl lg:text-[4.6rem]"
+          >
+            {t('hero.title')}
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.55, duration: 0.8 }}
+            className="mt-6 max-w-md font-body text-base leading-relaxed text-[#33271F] sm:text-lg"
+          >
+            {t('hero.subtitle')}
+          </motion.p>
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.75, duration: 0.8 }}
+            className="mt-10 flex flex-col gap-3 sm:flex-row"
+          >
+            <Button href="/reservas">{t('hero.ctaPrimary')}</Button>
+            <Button href="/termas" variant="ghost" className="!text-[#33271F] !border-[#C6A15B]/50">
+              {t('hero.ctaSecondary')}
+            </Button>
           </motion.div>
-        </AnimatePresence>
-      )}
-
-      <div className="absolute inset-0 bg-gradient-to-b from-brand-black/45 via-brand-black/25 to-brand-black/65" />
-
-      <div className="relative z-10 flex h-full flex-col items-center justify-center px-6 text-center">
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.8 }}
-          className="mb-6 text-xs tracking-[0.45em] uppercase text-brand-gold font-body"
-        >
-          {SITE.location}
-        </motion.p>
-        <motion.h1
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5, duration: 1 }}
-          className="font-display text-5xl md:text-7xl lg:text-8xl text-brand-cream max-w-5xl leading-[0.95]"
-        >
-          {SITE.name}
-        </motion.h1>
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8, duration: 0.8 }}
-          className="mt-6 font-subtitle text-xl md:text-2xl text-brand-cream/85 italic"
-        >
-          {SITE.tagline}
-        </motion.p>
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.1, duration: 0.8 }}
-          className="mt-12 flex flex-col sm:flex-row gap-4"
-        >
-          <Button href="/reservas">Reservar experiencia</Button>
-          <Button href="/experiencias" variant="secondary">
-            Descubrir
-          </Button>
-        </motion.div>
-      </div>
-
-      {!videoSrc && gallery.length > 1 && (
-        <div className="absolute bottom-24 left-1/2 z-10 flex -translate-x-1/2 gap-2">
-          {gallery.map((slide, i) => (
-            <button
-              key={slide.src}
-              type="button"
-              aria-label={`Ver imagen ${i + 1}`}
-              onClick={() => setIndex(i)}
-              className={`h-1.5 rounded-full transition-all duration-500 ${
-                i === index ? 'w-8 bg-brand-gold' : 'w-1.5 bg-brand-cream/40 hover:bg-brand-cream/70'
-              }`}
-            />
-          ))}
         </div>
-      )}
 
-      <motion.div
-        animate={{ y: [0, 8, 0] }}
-        transition={{ repeat: Infinity, duration: 2.2 }}
-        className="absolute bottom-10 left-1/2 -translate-x-1/2 text-brand-cream/70"
-      >
-        <ChevronDown size={28} />
-      </motion.div>
+        <div className="relative min-h-[62vh] lg:col-span-7 lg:min-h-[100svh]">
+          <div className="absolute inset-0 overflow-hidden">
+            <Image
+              src={image}
+              alt={t('hero.photoCaption')}
+              fill
+              priority
+              quality={88}
+              className="object-cover"
+              style={{ objectPosition: 'center 42%' }}
+              sizes="(max-width: 1024px) 100vw, 58vw"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#263A32]/45 via-transparent to-transparent" />
+            <p className="absolute bottom-6 left-6 right-6 text-xs tracking-[0.28em] uppercase text-[#F6F0E7] font-body font-semibold drop-shadow-[0_1px_8px_rgba(38,58,50,0.8)]">
+              {t('hero.photoCaption')}
+            </p>
+          </div>
+        </div>
+      </div>
     </section>
   );
 }

@@ -4,6 +4,7 @@ import './globals.css';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import Loader from '@/components/layout/Loader';
+import { LanguageProvider } from '@/components/i18n/LanguageProvider';
 import WhatsAppFloat from '@/components/shared/WhatsAppFloat';
 import BackgroundAmbience from '@/components/shared/BackgroundAmbience';
 import JsonLd from '@/components/seo/JsonLd';
@@ -55,13 +56,15 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         />
       </head>
       <body className="min-h-full flex flex-col bg-brand-cream text-brand-black antialiased">
-        <GoogleAnalyticsLoader />
-        <Loader />
-        <Navbar />
-        <main className="flex-1">{children}</main>
-        <Footer />
-        <WhatsAppFloat />
-        <BackgroundAmbience />
+        <LanguageProvider>
+          <GoogleAnalyticsLoader />
+          <Loader />
+          <Navbar />
+          <main className="flex-1">{children}</main>
+          <Footer />
+          <WhatsAppFloat />
+          <BackgroundAmbience />
+        </LanguageProvider>
       </body>
     </html>
   );

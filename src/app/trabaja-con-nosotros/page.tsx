@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import JsonLd from '@/components/seo/JsonLd';
 import SectionHeading from '@/components/shared/SectionHeading';
 import CareersApplicationForm from '@/components/careers/CareersApplicationForm';
+import Tx from '@/components/i18n/Tx';
 import { CAREERS_POSITIONS } from '@/lib/careers';
 import { breadcrumbJsonLd, createPageMetadata } from '@/lib/seo';
 
@@ -24,14 +25,16 @@ export default function TrabajaConNosotrosPage() {
       />
       <div className="mx-auto max-w-4xl px-6 lg:px-10">
         <SectionHeading
-          eyebrow="Sumate al equipo"
-          title="Trabajá con nosotros"
-          description="Buscamos personas con actitud, compromiso y ganas de formar parte de una experiencia única en la montaña riojana."
+          i18n={{
+            eyebrow: 'pages.careers.kicker',
+            title: 'pages.careers.title',
+            description: 'pages.careers.description',
+          }}
         />
 
         <div className="mb-12 max-w-2xl mx-auto">
           <p className="text-xs tracking-[0.25em] uppercase text-brand-gold font-body mb-4 text-center">
-            Puestos disponibles
+            <Tx k="pages.careers.positions" />
           </p>
           <ul className="flex flex-wrap justify-center gap-3">
             {CAREERS_POSITIONS.map((position) => (

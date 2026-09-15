@@ -1,0 +1,144 @@
+.section {
+  background: #f6f0e7;
+  padding: 2rem 0 4.75rem;
+  overflow-x: hidden;
+  overflow-x: clip;
+}
+
+.scroller {
+  overflow: hidden;
+  width: 100%;
+  max-width: 100%;
+  touch-action: pan-y;
+}
+
+.track {
+  display: flex;
+  width: max-content;
+  animation: experience-marquee 32s linear infinite;
+  will-change: transform;
+}
+
+.group {
+  display: flex;
+  gap: 1rem;
+  padding-right: 1rem;
+}
+
+.clone {
+  flex-shrink: 0;
+}
+
+.card {
+  position: relative;
+  flex: 0 0 85vw;
+  aspect-ratio: 4 / 5;
+  border-radius: 1.15rem;
+  overflow: hidden;
+  background: #263a32;
+  margin: 0;
+}
+
+.card:nth-child(even) {
+  margin-top: 0.65rem;
+}
+
+.image {
+  object-fit: cover;
+}
+
+.scroller:hover .track,
+.scroller:focus-within .track {
+  animation-play-state: paused;
+}
+
+.scroller:focus-visible {
+  outline: 2px solid #c6a15b;
+  outline-offset: -2px;
+}
+
+@media (min-width: 768px) {
+  .section {
+    padding: 2.5rem 0 5.5rem;
+  }
+
+  .card {
+    flex-basis: 42vw;
+  }
+}
+
+@media (min-width: 1024px) {
+  .card {
+    flex-basis: 31vw;
+  }
+
+  .group {
+    gap: 1.15rem;
+    padding-right: 1.15rem;
+  }
+}
+
+@media (min-width: 1440px) {
+  .card {
+    flex-basis: 28vw;
+  }
+}
+
+@media (hover: none) {
+  .scroller {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y;
+    scrollbar-width: none;
+    scroll-snap-type: x proximity;
+  }
+
+  .scroller::-webkit-scrollbar {
+    display: none;
+  }
+
+  .track {
+    animation: none;
+  }
+
+  .clone {
+    display: none;
+  }
+
+  .card {
+    scroll-snap-align: start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroller {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y;
+    scrollbar-width: thin;
+    scroll-snap-type: x proximity;
+  }
+
+  .track {
+    animation: none;
+  }
+
+  .clone {
+    display: none;
+  }
+
+  .card {
+    scroll-snap-align: start;
+  }
+}
+
+@keyframes experience-marquee {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}

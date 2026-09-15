@@ -19,8 +19,8 @@ const emptyForm = {
   membershipId: 'regular' as MembershipTierId,
   totalExperiences: 25,
   remainingExperiences: 25,
-  startDate: '2026-09-21',
-  endDate: '2027-09-21',
+  startDate: '2026-10-31',
+  endDate: '2027-10-31',
 };
 
 export default function AdminDashboard() {

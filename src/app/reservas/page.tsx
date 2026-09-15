@@ -23,9 +23,11 @@ export default function ReservasPage() {
       />
       <div className="mx-auto max-w-4xl px-6 lg:px-10">
         <SectionHeading
-          eyebrow="Reservas"
-          title="Tu experiencia comienza aquí"
-          description="Completá el formulario y te contactamos por WhatsApp con disponibilidad."
+          i18n={{
+            eyebrow: 'pages.reservations.kicker',
+            title: 'pages.reservations.title',
+            description: 'pages.reservations.description',
+          }}
         />
         <ReservationForm />
       </div>

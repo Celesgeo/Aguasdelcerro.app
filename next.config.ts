@@ -1,10 +1,11 @@
 import type { NextConfig } from 'next';
 import { SITE } from './src/lib/constants';
 
+const isProd = process.env.NODE_ENV === 'production';
+
 const securityHeaders = [
   { key: 'X-DNS-Prefetch-Control', value: 'on' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
-  { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   {
     key: 'Permissions-Policy',
@@ -36,11 +37,19 @@ const securityHeaders = [
       "frame-src 'self' https://maps.google.com https://www.google.com",
       "base-uri 'self'",
       "form-action 'self' https://formsubmit.co https://wa.me",
-      "frame-ancestors 'none'",
+      ...(isProd ? ["frame-ancestors 'none'", 'upgrade-insecure-requests'] : []),
       "object-src 'none'",
-      'upgrade-insecure-requests',
     ].join('; '),
   },
+  ...(isProd
+    ? [
+        { key: 'X-Frame-Options', value: 'DENY' },
+        {
+          key: 'Strict-Transport-Security',
+          value: 'max-age=63072000; includeSubDomains; preload',
+        },
+      ]
+    : []),
 ];
 
 const nextConfig: NextConfig = {
@@ -51,7 +60,9 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: process.cwd(),
   },
+  allowedDevOrigins: ['127.0.0.1', 'localhost'],
   images: {
+    qualities: [75, 78, 88, 90, 92],
     formats: ['image/avif', 'image/webp'],
     remotePatterns: [
       { protocol: 'https', hostname: '**.cdninstagram.com' },
@@ -73,17 +84,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/:path*',
-        headers: [
-          ...securityHeaders,
-          ...(process.env.NODE_ENV === 'production'
-            ? [
-                {
-                  key: 'Strict-Transport-Security',
-                  value: 'max-age=63072000; includeSubDomains; preload',
-                },
-              ]
-            : []),
-        ],
+        headers: securityHeaders,
       },
       {
         source: '/admin/:path*',

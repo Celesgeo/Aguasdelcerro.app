@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
-import Image from 'next/image';
 import JsonLd from '@/components/seo/JsonLd';
-import SectionHeading from '@/components/shared/SectionHeading';
+import LocalizedBleedHero from '@/components/shared/LocalizedBleedHero';
 import ScrollReveal from '@/components/shared/ScrollReveal';
 import Button from '@/components/shared/Button';
+import Tx from '@/components/i18n/Tx';
 import { getImagesByCategory, getSectionMedia } from '@/lib/media';
 import { breadcrumbJsonLd, createPageMetadata } from '@/lib/seo';
 
@@ -31,43 +31,29 @@ export default function GastronomiaPage() {
           { name: 'Gastronomía', path: '/gastronomia' },
         ])}
       />
-      <section className="relative h-[70vh] min-h-[500px]">
-        <Image
-          src={hero}
-          alt="Mirador gastronómico"
-          fill
-          priority
-          className="object-cover"
-          style={{ objectPosition: 'center 58%' }}
-          sizes="100vw"
-        />
-        <div className="absolute inset-0 bg-brand-black/45" />
-        <div className="relative z-10 flex h-full items-end pb-20 px-6 lg:px-10 max-w-7xl mx-auto">
-          <div>
-            <p className="text-xs tracking-[0.35em] uppercase text-brand-gold mb-4 font-body">Gastronomía</p>
-            <h1 className="font-display text-5xl md:text-6xl text-brand-cream max-w-3xl">Mirador Gastronómico</h1>
-          </div>
-        </div>
-      </section>
+      <LocalizedBleedHero image={hero} prefix="pages.gastronomy" position="center 58%" />
 
       <div className="mx-auto max-w-4xl px-6 py-28 lg:px-10">
         <ScrollReveal>
           <p className="text-xl leading-relaxed text-brand-dark/75 font-body text-center mb-12">
-            Sabores de La Rioja elevados a una experiencia contemplativa. Mesas bajo el cielo, luces cálidas
-            y montañas que se tiñen de oro al caer la tarde.
+            <Tx k="pages.gastronomy.body" />
           </p>
         </ScrollReveal>
         <div className="grid md:grid-cols-3 gap-8 text-center">
-          {['Cocina regional', 'Atardeceres únicos', 'Vista panorámica'].map((item) => (
-            <ScrollReveal key={item}>
+          {(['pillar1', 'pillar2', 'pillar3'] as const).map((pillar) => (
+            <ScrollReveal key={pillar}>
               <div className="border border-brand-brown/10 p-8 bg-white">
-                <h3 className="font-subtitle text-xl text-brand-brown">{item}</h3>
+                <h3 className="font-subtitle text-xl text-brand-brown">
+                  <Tx k={`pages.gastronomy.${pillar}`} />
+                </h3>
               </div>
             </ScrollReveal>
           ))}
         </div>
         <div className="mt-16 text-center">
-          <Button href="/reservas">Reservar mesa</Button>
+          <Button href="/reservas">
+            <Tx k="pages.gastronomy.cta" />
+          </Button>
         </div>
       </div>
     </div>

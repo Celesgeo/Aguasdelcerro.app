@@ -35,9 +35,11 @@ export default function GaleriaPage() {
       />
       <div className="mx-auto max-w-7xl px-6 lg:px-10">
         <SectionHeading
-          eyebrow="Galería"
-          title="Imágenes que cuentan una historia"
-          description="Cada fotografía captura un instante de calma, luz y montaña."
+          i18n={{
+            eyebrow: 'pages.gallery.kicker',
+            title: 'pages.gallery.title',
+            description: 'pages.gallery.description',
+          }}
         />
         <GalleryGrid images={images} />
       </div>

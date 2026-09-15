@@ -1,8 +1,10 @@
 import Image from 'next/image';
 import JsonLd from '@/components/seo/JsonLd';
+import LocalizedBleedHero from '@/components/shared/LocalizedBleedHero';
 import SectionHeading from '@/components/shared/SectionHeading';
 import ScrollReveal from '@/components/shared/ScrollReveal';
 import Button from '@/components/shared/Button';
+import Tx from '@/components/i18n/Tx';
 import { TERMAS_BENEFITS } from '@/lib/constants';
 import { getTermasMedia } from '@/lib/termas-media';
 import { breadcrumbJsonLd, createPageMetadata } from '@/lib/seo';
@@ -29,34 +31,15 @@ export default function TermasPage() {
         ])}
       />
 
-      <section className="relative pt-28 min-h-[75vh] flex items-end overflow-hidden">
-        <Image
-          src={media.hero}
-          alt="Piscinas de piedra natural al atardecer en el parque térmico"
-          fill
-          priority
-          quality={92}
-          className="object-cover"
-          style={{ objectPosition: 'center 42%' }}
-          sizes="100vw"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-brand-black/85 via-brand-black/35 to-brand-black/15" />
-        <div className="relative z-10 mx-auto max-w-7xl w-full px-6 lg:px-10 pb-16 md:pb-24">
-          <p className="text-xs tracking-[0.45em] uppercase text-brand-gold font-body mb-4">Parque Térmico</p>
-          <h1 className="font-display text-5xl md:text-7xl text-brand-cream max-w-3xl leading-[0.95]">
-            El agua como ritual
-          </h1>
-          <p className="mt-6 max-w-xl text-lg text-brand-cream/75 font-body leading-relaxed">
-            Piscinas de piedra natural, vapor suave y montaña riojana — una experiencia térmica de alto nivel.
-          </p>
-        </div>
-      </section>
+      <LocalizedBleedHero image={media.hero} prefix="pages.termas" minHeightClass="min-h-[75vh]" />
 
       <div className="mx-auto max-w-7xl px-6 py-28 lg:px-10">
         <SectionHeading
-          eyebrow="Bienestar"
-          title="13 piletas privadas en la colina"
-          description="Aguas térmicas mineralizadas integradas al paisaje. Silencio, calor y una estética cuidada en cada rincón."
+          i18n={{
+            eyebrow: 'pages.termas.wellnessKicker',
+            title: 'pages.termas.wellnessTitle',
+            description: 'pages.termas.wellnessDescription',
+          }}
         />
 
         <div className="mb-16 grid gap-5 lg:grid-cols-2">
@@ -92,11 +75,15 @@ export default function TermasPage() {
         </div>
 
         <div className="grid md:grid-cols-2 gap-8 mb-20">
-          {TERMAS_BENEFITS.map((b) => (
+          {TERMAS_BENEFITS.map((b, i) => (
             <ScrollReveal key={b.title}>
               <div className="bg-white border border-brand-brown/8 p-10 h-full">
-                <h3 className="font-subtitle text-2xl text-brand-brown mb-3">{b.title}</h3>
-                <p className="text-brand-dark/70 font-body leading-relaxed">{b.description}</p>
+                <h3 className="font-subtitle text-2xl text-brand-brown mb-3">
+                  <Tx k={`benefits.${i}.title`} />
+                </h3>
+                <p className="text-brand-dark/70 font-body leading-relaxed">
+                  <Tx k={`benefits.${i}.description`} />
+                </p>
               </div>
             </ScrollReveal>
           ))}
@@ -117,10 +104,14 @@ export default function TermasPage() {
             <div className="absolute inset-4 md:inset-6 border border-brand-gold/25 pointer-events-none" />
             <div className="absolute inset-0 flex items-center px-8 md:px-14">
               <div>
-                <p className="text-xs tracking-[0.35em] uppercase text-brand-gold font-body mb-3">Sector VIP</p>
-                <h3 className="font-display text-3xl md:text-5xl text-brand-cream mb-3">Mayor privacidad</h3>
+                <p className="text-xs tracking-[0.35em] uppercase text-brand-gold font-body mb-3">
+                  <Tx k="pages.termas.vipKicker" />
+                </p>
+                <h3 className="font-display text-3xl md:text-5xl text-brand-cream mb-3">
+                  <Tx k="pages.termas.vipTitle" />
+                </h3>
                 <p className="text-brand-cream/80 font-body max-w-md leading-relaxed">
-                  Deck de madera exclusivo, camas Bali y una experiencia premium sobre las luces de la ciudad.
+                  <Tx k="pages.termas.vipDescription" />
                 </p>
               </div>
             </div>
@@ -128,7 +119,9 @@ export default function TermasPage() {
         </ScrollReveal>
 
         <div className="mt-16 text-center">
-          <Button href="/reservas">Consultar disponibilidad</Button>
+          <Button href="/reservas">
+            <Tx k="pages.termas.cta" />
+          </Button>
         </div>
       </div>
     </div>

@@ -1,7 +1,9 @@
 import Image from 'next/image';
 import JsonLd from '@/components/seo/JsonLd';
+import LocalizedBleedHero from '@/components/shared/LocalizedBleedHero';
 import ScrollReveal from '@/components/shared/ScrollReveal';
 import Button from '@/components/shared/Button';
+import Tx from '@/components/i18n/Tx';
 import { EXPERIENCES } from '@/lib/constants';
 import { EXPERIENCES_HERO, getExperienceImage } from '@/lib/experiences-media';
 import { breadcrumbJsonLd, createPageMetadata } from '@/lib/seo';
@@ -27,29 +29,7 @@ export default function ExperienciasPage() {
       />
 
       {/* Hero editorial */}
-      <section className="relative pt-28 min-h-[70vh] flex items-end overflow-hidden">
-        <Image
-          src={EXPERIENCES_HERO}
-          alt="Atardecer en Aguas del Cerro"
-          fill
-          priority
-          quality={92}
-          className="object-cover"
-          style={{ objectPosition: 'center 40%' }}
-          sizes="100vw"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-brand-black/90 via-brand-black/45 to-brand-black/20" />
-        <div className="relative mx-auto max-w-7xl w-full px-6 lg:px-10 pb-16 md:pb-24">
-          <p className="text-xs tracking-[0.45em] uppercase text-brand-gold font-body mb-4">Experiencias</p>
-          <h1 className="font-display text-5xl md:text-7xl text-brand-cream max-w-3xl leading-[0.95]">
-            Viví La Rioja con glamour
-          </h1>
-          <p className="mt-6 max-w-xl text-lg text-brand-cream/75 font-body leading-relaxed">
-            Termas de piedra, mirador gastronómico y paisajes que invitan a bajar el ritmo — con una estética cuidada en
-            cada detalle.
-          </p>
-        </div>
-      </section>
+      <LocalizedBleedHero image={EXPERIENCES_HERO} prefix="pages.experiences" position="center 40%" />
 
       <div className="mx-auto max-w-7xl px-6 lg:px-10 py-24 lg:py-32">
         <div className="space-y-28 lg:space-y-36">
@@ -81,13 +61,15 @@ export default function ExperienciasPage() {
 
                   <div className={`lg:col-span-5 ${reverse ? 'lg:[direction:ltr]' : ''}`}>
                     <p className="text-[11px] tracking-[0.4em] uppercase text-brand-gold font-body mb-4">
-                      0{i + 1} — Experiencia
+                      0{i + 1} — <Tx k="pages.experiences.itemKicker" />
                     </p>
                     <h2 className="font-display text-4xl md:text-5xl text-brand-brown leading-tight mb-5">
-                      {exp.title}
+                      <Tx k={`experiences.${exp.slug}.title`} />
                     </h2>
                     <div className="w-12 h-px bg-brand-gold/60 mb-6" />
-                    <p className="text-lg leading-relaxed text-brand-dark/70 font-body">{exp.description}</p>
+                    <p className="text-lg leading-relaxed text-brand-dark/70 font-body">
+                      <Tx k={`experiences.${exp.slug}.description`} />
+                    </p>
                   </div>
                 </article>
               </ScrollReveal>
@@ -96,11 +78,15 @@ export default function ExperienciasPage() {
         </div>
 
         <ScrollReveal className="mt-28 text-center border border-brand-brown/10 bg-white px-8 py-14 md:py-16">
-          <p className="text-xs tracking-[0.35em] uppercase text-brand-gold font-body mb-4">Tu momento</p>
+          <p className="text-xs tracking-[0.35em] uppercase text-brand-gold font-body mb-4">
+            <Tx k="pages.experiences.moment" />
+          </p>
           <h2 className="font-display text-3xl md:text-4xl text-brand-brown mb-6">
-            Reservá una experiencia a tu medida
+            <Tx k="pages.experiences.ctaTitle" />
           </h2>
-          <Button href="/reservas">Consultar disponibilidad</Button>
+          <Button href="/reservas">
+            <Tx k="pages.experiences.cta" />
+          </Button>
         </ScrollReveal>
       </div>
     </div>

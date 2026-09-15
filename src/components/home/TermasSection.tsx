@@ -1,23 +1,29 @@
+'use client';
+
 import Image from 'next/image';
 import { Droplets, Leaf, Moon, Sparkles } from 'lucide-react';
 import SectionHeading from '@/components/shared/SectionHeading';
 import ScrollReveal from '@/components/shared/ScrollReveal';
-import { TERMAS_BENEFITS } from '@/lib/constants';
 import { getTermasMedia } from '@/lib/termas-media';
+import { useLocaleDict, useT } from '@/components/i18n/LanguageProvider';
 
 const icons = [Droplets, Leaf, Moon, Sparkles];
 
 export default function TermasSection() {
   const media = getTermasMedia();
+  const t = useT();
+  const dict = useLocaleDict();
 
   return (
     <section className="bg-brand-brown py-28 lg:py-36">
       <div className="mx-auto max-w-7xl px-6 lg:px-10">
         <SectionHeading
           light
-          eyebrow="Parque Térmico"
-          title="Calor que envuelve el cuerpo"
-          description="Aguas térmicas mineralizadas en piscinas de piedra natural, integradas al paisaje de La Rioja."
+          i18n={{
+            eyebrow: 'home.termasKicker',
+            title: 'home.termasTitle',
+            description: 'home.termasDescription',
+          }}
         />
 
         <div className="mb-16 grid gap-4 lg:grid-cols-12">
@@ -25,7 +31,7 @@ export default function TermasSection() {
             <div className="relative aspect-[16/10] overflow-hidden border border-brand-gold/15">
               <Image
                 src={media.hero}
-                alt="Piletas de piedra al atardecer en el parque térmico"
+                alt={t('home.termasOverview')}
                 fill
                 className="object-cover"
                 style={{ objectPosition: 'center 42%' }}
@@ -34,7 +40,7 @@ export default function TermasSection() {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-brand-black/50 via-transparent to-transparent pointer-events-none" />
               <p className="absolute bottom-5 left-5 text-xs tracking-[0.25em] uppercase text-brand-cream/85 font-body pointer-events-none">
-                Vista general · 13 piletas privadas
+                {t('home.termasOverview')}
               </p>
             </div>
           </ScrollReveal>
@@ -43,7 +49,7 @@ export default function TermasSection() {
             <div className="relative aspect-[16/10] lg:aspect-auto lg:h-full min-h-[280px] overflow-hidden border border-brand-gold/15">
               <Image
                 src={media.vip}
-                alt="Vista nocturna del parque térmico hacia La Rioja"
+                alt={t('home.termasValley')}
                 fill
                 className="object-cover"
                 style={{ objectPosition: 'center 60%' }}
@@ -53,15 +59,15 @@ export default function TermasSection() {
               <div className="absolute inset-0 bg-gradient-to-t from-brand-black/75 via-brand-black/15 to-transparent" />
               <div className="absolute inset-3 border border-brand-gold/20 pointer-events-none" />
               <div className="absolute bottom-5 left-5 right-5">
-                <p className="text-xs tracking-[0.25em] uppercase text-brand-gold font-body mb-2">De noche</p>
-                <p className="font-subtitle text-xl text-brand-cream">Vista al valle · Luces de La Rioja</p>
+                <p className="text-xs tracking-[0.25em] uppercase text-brand-gold font-body mb-2">{t('home.termasNight')}</p>
+                <p className="font-subtitle text-xl text-brand-cream">{t('home.termasValley')}</p>
               </div>
             </div>
           </ScrollReveal>
         </div>
 
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
-          {TERMAS_BENEFITS.map((item, i) => {
+          {dict.benefits.map((item, i) => {
             const Icon = icons[i] ?? Droplets;
             return (
               <ScrollReveal key={item.title} delay={i * 0.08}>
