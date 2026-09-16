@@ -10,7 +10,10 @@ import {
   CAREERS_POSITIONS,
   CV_ALLOWED_EXTENSIONS,
   CV_MAX_BYTES,
+  explainCareersMailError,
+  getCareerPositionLabel,
   getFileExtension,
+  getPublicCareersNotifyEmail,
   isAllowedCvExtension,
 } from '@/lib/careers';
 
@@ -38,6 +41,74 @@ function validateCvFile(file: File | undefined): string | true {
   }
 
   return true;
+}
+
+function buildApplicationMessage(data: CareersFormData, puestoLabel: string, cvName?: string): string {
+  return [
+    'Nueva postulación laboral — Aguas del Cerro',
+    '',
+    `Nombre: ${data.nombre}`,
+    `Teléfono: ${data.telefono}`,
+    `Email: ${data.email}`,
+    `Localidad: ${data.localidad}`,
+    `Puesto: ${puestoLabel}`,
+    cvName ? `CV subido en la web: ${cvName}` : 'CV: no adjuntó archivo',
+    '',
+    'Presentación / experiencia:',
+    data.presentacion,
+  ].join('\n');
+}
+
+async function submitViaFormSubmitAjax(
+  data: CareersFormData,
+  cvFile: File | null,
+): Promise<{ ok: boolean; error?: string }> {
+  const puestoLabel = getCareerPositionLabel(data.puesto);
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), 8000);
+
+  try {
+    const response = await fetch(
+      `https://formsubmit.co/ajax/${encodeURIComponent(getPublicCareersNotifyEmail())}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        signal: controller.signal,
+        body: JSON.stringify({
+          name: data.nombre,
+          email: data.email,
+          phone: data.telefono,
+          localidad: data.localidad,
+          puesto: puestoLabel,
+          message: buildApplicationMessage(data, puestoLabel, cvFile?.name),
+          _subject: `[Postulación] ${puestoLabel} — ${data.nombre}`,
+          _template: 'table',
+          _captcha: 'false',
+        }),
+      },
+    );
+
+    const result = (await response.json().catch(() => null)) as {
+      success?: boolean | string;
+      message?: string;
+    } | null;
+
+    const ok = result?.success === true || result?.success === 'true';
+    if (ok) return { ok: true };
+
+    const raw = String(result?.message ?? `FormSubmit rechazó el envío (${response.status})`);
+    return { ok: false, error: explainCareersMailError(raw) };
+  } catch {
+    return {
+      ok: false,
+      error: 'No se pudo enviar la postulación. Intentá de nuevo; si se repite, escribinos por WhatsApp.',
+    };
+  } finally {
+    window.clearTimeout(timer);
+  }
 }
 
 async function bumpApplicationCount(): Promise<number | null> {
@@ -124,6 +195,7 @@ function CareersFormFields({
 
       const apiController = new AbortController();
       const apiTimer = window.setTimeout(() => apiController.abort(), 20_000);
+      let apiError: string | undefined;
 
       try {
         const response = await fetch('/api/careers', { method: 'POST', body, signal: apiController.signal });
@@ -143,14 +215,26 @@ function CareersFormFields({
           return;
         }
 
-        setSubmitError(
-          result?.error ?? 'No se pudo registrar la postulación. Recargá la página e intentá de nuevo.',
-        );
+        apiError = result?.error;
       } catch {
-        setSubmitError('Error de conexión. Verificá tu internet, recargá la página e intentá de nuevo.');
+        apiError = undefined;
       } finally {
         window.clearTimeout(apiTimer);
       }
+
+      const browserSend = await submitViaFormSubmitAjax(data, cvFile);
+      if (browserSend.ok) {
+        onSuccess(
+          '¡Gracias! Recibimos tu postulación. Nos contactaremos si tu perfil encaja con la búsqueda.',
+        );
+        return;
+      }
+
+      setSubmitError(
+        apiError ??
+          browserSend.error ??
+          'No se pudo enviar la postulación. Intentá de nuevo; si se repite, escribinos por WhatsApp.',
+      );
     } catch {
       setSubmitError('Error de conexión. Verificá tu internet e intentá de nuevo.');
     } finally {

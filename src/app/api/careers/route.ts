@@ -16,6 +16,7 @@ import { trySendCareerApplicationEmail } from '@/lib/mail';
 import { clientIp, rateLimit, sanitizeText } from '@/lib/security';
 
 export const maxDuration = 60;
+export const dynamic = 'force-dynamic';
 
 const MIN_FORM_SECONDS = 0;
 
@@ -30,7 +31,15 @@ export async function POST(request: Request) {
       );
     }
 
-    const formData = await request.formData();
+    let formData: FormData;
+    try {
+      formData = await request.formData();
+    } catch {
+      return NextResponse.json(
+        { ok: false, error: 'Completá todos los campos obligatorios.' },
+        { status: 400 },
+      );
+    }
 
     // Honeypot: bots suelen completar campos ocultos
     const honeypot = sanitizeText(formData.get('_gotcha'), 100);
@@ -132,8 +141,8 @@ export async function POST(request: Request) {
 
     let saved = false;
     try {
-      await saveCareerApplication(applicationData, buffer, ext);
-      saved = true;
+      const result = await saveCareerApplication(applicationData, buffer, ext);
+      saved = result.persisted;
     } catch (error) {
       console.error('[careers] no se pudo guardar la postulación:', error);
     }

@@ -202,7 +202,7 @@ export async function saveCareerApplication(
   record: Omit<CareerApplicationRecord, 'id' | 'createdAt' | 'cvFilename'>,
   cvBuffer: Buffer,
   cvExt: string,
-): Promise<CareerApplicationRecord> {
+): Promise<{ record: CareerApplicationRecord; persisted: boolean }> {
   let id = randomUUID();
   const createdAt = new Date().toISOString();
   const hasCv = cvBuffer.length > 0 && Boolean(cvExt);
@@ -243,10 +243,9 @@ export async function saveCareerApplication(
     const merged = mergeApplications([fullRecord], await loadMergedInbox());
     memoryInbox = merged;
     await atomicWrite(inboxFile(), JSON.stringify(merged, null, 2));
+    return { record: fullRecord, persisted: true };
   } catch (error) {
-    // En Railway el disco puede fallar; la copia en memoria alcanza para esta instancia.
     console.error('[careers] backup en disco falló:', error);
+    return { record: fullRecord, persisted: false };
   }
-
-  return fullRecord;
 }

@@ -27,16 +27,19 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
-RUN addgroup --system --gid 1001 nodejs \
+RUN apk add --no-cache su-exec \
+  && addgroup --system --gid 1001 nodejs \
   && adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-RUN mkdir -p /app/data && chown nextjs:nodejs /app/data
-
-USER nextjs
+COPY docker-entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh \
+  && mkdir -p /app/data/careers \
+  && chown -R nextjs:nodejs /app/data
 
 EXPOSE 3000
 
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["node", "server.js"]

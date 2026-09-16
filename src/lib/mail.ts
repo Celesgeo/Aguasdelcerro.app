@@ -85,12 +85,12 @@ export function isMailConfigured(): boolean {
   return getActiveMailProvider() !== null;
 }
 
-/** Primer canal con chance real de adjuntar el CV. */
+/** Canal que realmente llega al inbox activo (Gmail), no a un buzón @aguasdelcerro.net inactivo. */
 export function getActiveMailProvider(): MailProvider | null {
-  if (getWeb3FormsKey()) return 'web3forms';
   if (getSmtpConfig()) return 'smtp';
   if (getResendKey() && !isResendQuotaBlocked()) return 'resend';
-  return null;
+  if (getWeb3FormsKey()) return 'web3forms';
+  return 'formsubmit';
 }
 
 export function supportsCvEmailAttachment(): boolean {
@@ -371,18 +371,6 @@ async function tryResend(params: CareerEmailParams, errors: string[]): Promise<b
 export async function sendCareerApplicationEmail(params: CareerEmailParams): Promise<void> {
   const errors: string[] = [];
 
-  const web3Key = getWeb3FormsKey();
-  if (web3Key) {
-    try {
-      await sendViaWeb3Forms(params, web3Key);
-      return;
-    } catch (error) {
-      const message = errorMessage(error);
-      console.error('[mail] Web3Forms falló:', message);
-      errors.push(`web3forms: ${message}`);
-    }
-  }
-
   const smtp = getSmtpConfig();
   if (smtp) {
     try {
@@ -397,6 +385,27 @@ export async function sendCareerApplicationEmail(params: CareerEmailParams): Pro
 
   if (await tryResend(params, errors)) return;
 
+  try {
+    await sendViaFormSubmit(params);
+    return;
+  } catch (error) {
+    const message = errorMessage(error);
+    console.error('[mail] FormSubmit falló:', message);
+    errors.push(`formsubmit: ${message}`);
+  }
+
+  const web3Key = getWeb3FormsKey();
+  if (web3Key) {
+    try {
+      await sendViaWeb3Forms(params, web3Key);
+      return;
+    } catch (error) {
+      const message = errorMessage(error);
+      console.error('[mail] Web3Forms falló:', message);
+      errors.push(`web3forms: ${message}`);
+    }
+  }
+
   throw new Error(errors.length ? errors.join(' | ') : 'Email no configurado');
 }
 
@@ -406,7 +415,7 @@ export async function trySendCareerApplicationEmail(params: CareerEmailParams): 
     await Promise.race([
       sendCareerApplicationEmail(params),
       new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('timeout')), 6_000);
+        setTimeout(() => reject(new Error('timeout')), 20_000);
       }),
     ]);
     return true;
