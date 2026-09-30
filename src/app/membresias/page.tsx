@@ -8,6 +8,7 @@ import MembershipInquiryForm from '@/components/membresias/MembershipInquiryForm
 import MembershipDownload from '@/components/membresias/MembershipDownload';
 import {
   MEMBERSHIP_TIERS,
+  VISITOR_TIER,
   formatARS,
   formatMembershipPrice,
   type MembershipTier,
@@ -27,13 +28,17 @@ function TierCard({
   tier,
   delay = 0,
   dark = false,
+  payHref,
+  hideInquiry = false,
 }: {
   tier: MembershipTier;
   delay?: number;
   dark?: boolean;
+  payHref?: string;
+  hideInquiry?: boolean;
 }) {
   const highlighted = Boolean(tier.highlight) || dark;
-  const paymentLink = getPaymentLink(tier.id);
+  const paymentLink = payHref ?? getPaymentLink(tier.id);
   const shortName = tier.name
     .replace('Membresía ', '')
     .replace('Empresa Fundadora ', '')
@@ -152,13 +157,15 @@ function TierCard({
               Pagar ahora
             </Button>
           ) : null}
-          <Button
-            href="#consulta"
-            variant={paymentLink ? 'ghost' : highlighted ? 'primary' : 'ghost'}
-            className="w-full"
-          >
-            {paymentLink ? 'Consultar' : 'Consultar / Reservar'}
-          </Button>
+          {hideInquiry ? null : (
+            <Button
+              href="#consulta"
+              variant={paymentLink ? 'ghost' : highlighted ? 'primary' : 'ghost'}
+              className="w-full"
+            >
+              {paymentLink ? 'Consultar' : 'Consultar / Reservar'}
+            </Button>
+          )}
         </div>
       </article>
     </ScrollReveal>
@@ -190,10 +197,15 @@ export default function MembresiasPage() {
       </section>
 
       <section className="pb-20 px-6 lg:px-10">
-        <div className="mx-auto max-w-7xl grid gap-6 lg:grid-cols-3">
-          {personal.map((tier, i) => (
-            <TierCard key={tier.id} tier={tier} delay={i * 0.08} />
-          ))}
+        <div className="mx-auto max-w-7xl">
+          <div className="grid gap-6 lg:grid-cols-3">
+            <TierCard tier={VISITOR_TIER} payHref="/reservas" hideInquiry />
+          </div>
+          <div className="mt-6 grid gap-6 lg:grid-cols-3">
+            {personal.map((tier, i) => (
+              <TierCard key={tier.id} tier={tier} delay={i * 0.08} />
+            ))}
+          </div>
         </div>
       </section>
 

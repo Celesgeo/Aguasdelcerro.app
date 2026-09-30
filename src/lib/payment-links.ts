@@ -20,6 +20,7 @@ const DEFAULT_PAYMENT_LINKS: Partial<Record<MembershipTierId, string>> = {
 };
 
 const PAYMENT_LINK_ENV: Record<MembershipTierId, string | undefined> = {
+  visitante: undefined,
   regular: process.env.NEXT_PUBLIC_MP_LINK_REGULAR ?? DEFAULT_PAYMENT_LINKS.regular,
   plata: process.env.NEXT_PUBLIC_MP_LINK_PLATA ?? DEFAULT_PAYMENT_LINKS.plata,
   oro: process.env.NEXT_PUBLIC_MP_LINK_ORO ?? DEFAULT_PAYMENT_LINKS.oro,

@@ -1,4 +1,5 @@
 export type MembershipTierId =
+  | 'visitante'
   | 'regular'
   | 'plata'
   | 'oro'
@@ -23,7 +24,7 @@ export interface MembershipTier {
   savingsPercent?: number;
   unitPrice?: number;
   highlight?: boolean;
-  category: 'personal' | 'empresa';
+  category: 'visitante' | 'personal' | 'empresa';
   benefits: string[];
   note?: string;
 }
@@ -41,6 +42,18 @@ const EMPRESA_BASE_BENEFITS = [
   'Nombramiento en placa de fundadores en el predio',
   'Uso publicitario como Empresa Fundadora de Aguas del Cerro',
 ];
+
+export const VISITOR_TIER: MembershipTier = {
+  id: 'visitante',
+  name: 'Individual',
+  tagline: 'Membresía visitante',
+  duration: '1 turno',
+  forWhom: '1 persona',
+  price: TICKET_PRICE_ARS,
+  currency: 'ARS',
+  category: 'visitante',
+  benefits: ['Acceso al predio', 'Acceso al parque térmico'],
+};
 
 export const MEMBERSHIP_TIERS: MembershipTier[] = [
   {
