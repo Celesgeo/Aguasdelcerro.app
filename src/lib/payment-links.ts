@@ -2,9 +2,14 @@ import type { MembershipTierId } from '@/lib/memberships';
 
 /**
  * Links de pago de Mercado Pago.
- * Prioridad: variable de entorno → link por defecto del plan.
- * Si no hay link, ese plan solo muestra “Consultar”.
+ * Prioridad: variable de entorno → link por defecto.
+ * Si no hay link, ese botón de pago no se muestra.
+ *
+ * La membresía visitante de /reservas ($20.000) se pega en DEFAULT_TICKET_PAYMENT_LINK
+ * o en NEXT_PUBLIC_MP_LINK_TICKET.
  */
+const DEFAULT_TICKET_PAYMENT_LINK = 'https://mpago.la/2UivFh6'; // Membresía visitante · $20.000
+
 const DEFAULT_PAYMENT_LINKS: Partial<Record<MembershipTierId, string>> = {
   regular: 'https://mpago.la/24EGjQU', // $150.000
   plata: 'https://mpago.la/31VWCmQ', // $300.000
@@ -41,6 +46,12 @@ function isHttpUrl(value: string): boolean {
 
 export function getPaymentLink(tierId: MembershipTierId): string | null {
   const raw = PAYMENT_LINK_ENV[tierId]?.trim();
+  if (!raw || !isHttpUrl(raw)) return null;
+  return raw;
+}
+
+export function getTicketPaymentLink(): string | null {
+  const raw = (process.env.NEXT_PUBLIC_MP_LINK_TICKET ?? DEFAULT_TICKET_PAYMENT_LINK).trim();
   if (!raw || !isHttpUrl(raw)) return null;
   return raw;
 }

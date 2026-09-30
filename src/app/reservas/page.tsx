@@ -1,15 +1,15 @@
 import type { Metadata } from 'next';
 import JsonLd from '@/components/seo/JsonLd';
 import SectionHeading from '@/components/shared/SectionHeading';
-import ReservationForm from '@/components/shared/ReservationForm';
+import VisitorShiftBooking from '@/components/shared/VisitorShiftBooking';
 import { breadcrumbJsonLd, createPageMetadata } from '@/lib/seo';
 
 export const metadata: Metadata = createPageMetadata({
   title: 'Reservas',
   description:
-    'Reservá tu experiencia en Aguas del Cerro. Parque térmico y mirador gastronómico en La Rioja, Argentina.',
+    'Reservá tu experiencia en Aguas del Cerro. Membresía visitante individual del parque térmico: $20.000 por persona. La Rioja, Argentina.',
   path: '/reservas',
-  keywords: ['reservas', 'turnos parque térmico', 'reservar mirador'],
+  keywords: ['reservas', 'membresía visitante', 'membresía individual', 'mercado pago', 'reservar mirador'],
 });
 
 export default function ReservasPage() {
@@ -29,7 +29,7 @@ export default function ReservasPage() {
             description: 'pages.reservations.description',
           }}
         />
-        <ReservationForm />
+        <VisitorShiftBooking />
       </div>
     </div>
   );

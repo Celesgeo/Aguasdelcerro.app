@@ -28,7 +28,10 @@ export interface MembershipTier {
   note?: string;
 }
 
-export const MEMBERSHIP_UNIT_PRICE = 20_000;
+/** Valor de la membresía visitante individual (por persona). */
+export const TICKET_PRICE_ARS = 20_000;
+
+export const MEMBERSHIP_UNIT_PRICE = TICKET_PRICE_ARS;
 
 const EMPRESA_BASE_BENEFITS = [
   'Pase fundador personal gratis durante 1 año',
