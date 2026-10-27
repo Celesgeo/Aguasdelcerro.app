@@ -2,17 +2,17 @@ import { EXPERIENCES } from '@/lib/constants';
 
 /** Imágenes editoriales HD por experiencia (generadas a partir del material real). */
 export const EXPERIENCE_IMAGES: Record<(typeof EXPERIENCES)[number]['slug'], string> = {
-  relax: '/images/experiencias/exp-relax.jpg',
-  naturaleza: '/images/experiencias/exp-naturaleza.jpg',
-  fotografia: '/images/experiencias/exp-fotografia.jpg',
-  senderismo: '/images/experiencias/exp-senderismo.jpg',
-  gastronomia: '/images/experiencias/exp-gastronomia.jpg',
-  atardeceres: '/images/experiencias/exp-atardeceres.jpg',
-  descanso: '/images/experiencias/exp-descanso.jpg',
+  relax: '/images/real/real-termas-luz-calida.jpg',
+  naturaleza: '/images/real/real-cardon-noche-cielo.jpg',
+  fotografia: '/images/real/real-cardon-ciudad-noche.jpg',
+  senderismo: '/images/real/real-mirador-sierras.jpg',
+  gastronomia: '/images/real/real-evento-mirador-noche.jpg',
+  atardeceres: '/images/real/real-atardecer-parque.jpg',
+  descanso: '/images/real/real-spa-masajes-hombros.jpg',
 };
 
 export function getExperienceImage(slug: string): string {
-  return EXPERIENCE_IMAGES[slug as keyof typeof EXPERIENCE_IMAGES] ?? '/images/experiencias/exp-relax.jpg';
+  return EXPERIENCE_IMAGES[slug as keyof typeof EXPERIENCE_IMAGES] ?? '/images/real/real-termas-luz-calida.jpg';
 }
 
 export function getAllExperienceImages(): { slug: string; src: string; title: string; description: string }[] {
@@ -25,4 +25,4 @@ export function getAllExperienceImages(): { slug: string; src: string; title: st
 }
 
 /** Hero editorial de la página Experiencias. */
-export const EXPERIENCES_HERO = '/images/experiencias/exp-atardeceres.jpg';
+export const EXPERIENCES_HERO = '/images/real/real-cardon-ciudad-noche.jpg';

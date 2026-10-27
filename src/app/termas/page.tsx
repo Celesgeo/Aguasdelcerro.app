@@ -15,7 +15,7 @@ export const metadata: Metadata = createPageMetadata({
   description:
     'Parque térmico en La Rioja, Argentina. Bienestar, relax y conexión con la naturaleza en Aguas del Cerro.',
   path: '/termas',
-  image: '/images/termas/termas-portada.jpg',
+  image: '/images/og-aguas-del-cerro.jpg',
   keywords: ['parque térmico', 'termas La Rioja', 'spa montaña', 'aguas termales'],
 });
 
@@ -48,7 +48,7 @@ export default function TermasPage() {
               <div className="relative aspect-[16/10]">
                 <Image
                   src={media.overview}
-                  alt="Vista nocturna del parque térmico hacia la ciudad"
+                  alt="Piletas térmicas bajo el techo de luces"
                   fill
                   className="object-cover transition-transform duration-[1.2s] group-hover:scale-[1.02]"
                   sizes="(max-width:1024px) 100vw, 50vw"
@@ -62,7 +62,7 @@ export default function TermasPage() {
             <div className="group relative overflow-hidden h-full min-h-[280px]">
               <Image
                 src={media.hero}
-                alt="Piletas de piedra al atardecer en Aguas del Cerro"
+                alt="Pileta de piedra con luz violeta de noche en Aguas del Cerro"
                 fill
                 className="object-cover transition-transform duration-[1.2s] group-hover:scale-[1.02]"
                 style={{ objectPosition: 'center 58%' }}

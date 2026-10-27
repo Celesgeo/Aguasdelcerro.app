@@ -17,14 +17,14 @@ import {
 import InstagramButton from '@/components/shared/InstagramButton';
 import InstagramGallery from '@/components/shared/InstagramGallery';
 import SectionHeading from '@/components/shared/SectionHeading';
-import { getSectionMedia } from '@/lib/media';
+import { getSectionMedia, HERO_VIDEO, HERO_VIDEO_POSTER } from '@/lib/media';
 
 export default function HomePage() {
   const sections = getSectionMedia();
 
   return (
     <div className="overflow-x-clip">
-      <Hero image="/images/real/real-termas-atardecer.jpg" />
+      <Hero image={HERO_VIDEO_POSTER} video={HERO_VIDEO} />
       <ExperienceSection />
       <TermasSection />
       <MiradorSection image={sections.mirador} />
