@@ -3,11 +3,13 @@
 import { useEffect, useState } from 'react';
 import { SITE } from '@/lib/constants';
 import { useT } from '@/components/i18n/LanguageProvider';
+import Button from '@/components/shared/Button';
 
 function getTimeLeft() {
   const target = new Date(SITE.inaugurationDate).getTime();
   const diff = Math.max(0, target - Date.now());
   return {
+    done: diff === 0,
     days: Math.floor(diff / 86400000),
     hours: Math.floor((diff % 86400000) / 3600000),
     minutes: Math.floor((diff % 3600000) / 60000),
@@ -30,6 +32,18 @@ export default function CountdownSection() {
     { label: t('home.minutes'), value: timeLeft.minutes },
     { label: t('home.seconds'), value: timeLeft.seconds },
   ];
+
+  if (timeLeft.done) {
+    return (
+      <section className="bg-brand-black py-20 border-y border-brand-gold/10">
+        <div className="mx-auto max-w-4xl px-6 text-center">
+          <p className="text-xs tracking-[0.35em] uppercase text-brand-gold mb-4 font-body">{t('home.countdownOpenKicker')}</p>
+          <h2 className="font-display text-3xl md:text-4xl text-brand-cream mb-10">{t('home.countdownOpenTitle')}</h2>
+          <Button href="/reservas">{t('home.countdownOpenCta')}</Button>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="bg-brand-black py-20 border-y border-brand-gold/10">

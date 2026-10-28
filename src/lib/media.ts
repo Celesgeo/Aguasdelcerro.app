@@ -37,7 +37,8 @@ const IMAGE_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp', '.avif']);
 const VIDEO_EXT = new Set(['.mp4', '.webm', '.mov']);
 
 /** Video principal del hero (optimizado para web). */
-export const HERO_VIDEO = '/videos/hero-noche.mp4';
+export const HERO_VIDEO = '/videos/termas-noche.mp4';
+export const HERO_VIDEO_POSTER = '/images/termas-noche-poster.jpg';
 
 const IMAGE_DIRS = [
   { dir: 'real', urlPrefix: '/images/real' },
@@ -56,6 +57,12 @@ function readDirSafe(dir: string): string[] {
 function classifyImage(filename: string): MediaCategory {
   const n = filename.toLowerCase();
   if (n.includes('logo')) return 'logo';
+  if (n.includes('og-')) return 'logo';
+  if (n.includes('intro-') || n.includes('poster')) return 'logo';
+  if (n.includes('mirador-sierras')) return 'mirador';
+  if (n.includes('cardon') || n.includes('luna')) return 'paisajes';
+  if (n.includes('rosas')) return 'naturaleza';
+  if (n.includes('spa-')) return 'experiencia';
   if (n.includes('real-termas') || n.includes('piletas') || n.includes('piscina')) return 'termas';
   if (n.includes('real-cartel') || n.includes('real-evento') || n.includes('mirador')) return 'mirador';
   if (n.includes('real-naturaleza') || n.includes('lechuza')) return 'naturaleza';
@@ -71,12 +78,19 @@ function classifyImage(filename: string): MediaCategory {
 function altFromFilename(filename: string, category: MediaCategory): string {
   const n = filename.toLowerCase();
   if (n.includes('real-cartel')) return 'Cartel iluminado de Aguas del Cerro de noche';
+  if (n.includes('real-cardon-ciudad')) return 'Cardón florecido con las luces de la ciudad de La Rioja';
+  if (n.includes('real-cardon')) return 'Cardón bajo el cielo nocturno del parque';
+  if (n.includes('real-luna')) return 'Luna llena sobre el parque de Aguas del Cerro';
+  if (n.includes('real-mirador-sierras')) return 'Mirador gastronómico frente a las sierras riojanas';
+  if (n.includes('real-rosas')) return 'Rosas del parque de noche con la ciudad de fondo';
+  if (n.includes('real-spa')) return 'Masajes y bienestar (imagen ilustrativa)';
+  if (n.includes('real-termas-vista-ciudad')) return 'Pileta térmica con vista nocturna a la ciudad';
+  if (n.includes('real-termas-cielo')) return 'Piletas térmicas bajo el techo de luces';
+  if (n.includes('real-atardecer-parque')) return 'Atardecer sobre el parque y las sierras';
   if (n.includes('real-evento')) return 'Mirador nocturno con vista a la ciudad de La Rioja';
-  if (n.includes('real-termas-atardecer')) return 'Piletas térmicas al atardecer en Aguas del Cerro';
   if (n.includes('real-termas-noche')) return 'Vista nocturna del parque térmico hacia la ciudad';
-  if (n.includes('real-termas') || n.includes('piletas')) return 'Piletas térmicas de piedra en Aguas del Cerro';
+  if (n.includes('real-termas') || n.includes('piletas')) return 'Pileta térmica de piedra iluminada de noche';
   if (n.includes('real-naturaleza') || n.includes('lechuza')) return 'Fauna y naturaleza de La Rioja';
-  if (n.includes('real-atardecer')) return 'Atardecer en las montañas riojanas';
 
   const map: Record<MediaCategory, string> = {
     logo: 'Logo Aguas del Cerro',
@@ -184,10 +198,10 @@ export function getSectionMedia() {
   const by = (name: string) => images.find((i) => i.filename.includes(name))?.src;
 
   return {
-    termas: by('real-termas-atardecer') ?? by('real-termas') ?? '/images/termas/termas-hero.jpg',
+    termas: by('real-termas-luz-violeta') ?? '/images/real/real-termas-luz-violeta.jpg',
     mirador: by('real-evento') ?? '/images/real/real-evento-mirador-noche.jpg',
-    experiencia: by('real-atardecer') ?? '/images/real/real-atardecer-montana.jpg',
-    naturaleza: by('real-naturaleza') ?? '/images/real/real-naturaleza-lechuza.jpg',
+    experiencia: by('real-atardecer-parque') ?? '/images/real/real-atardecer-parque.jpg',
+    naturaleza: by('real-cardon-noche') ?? '/images/real/real-cardon-noche-cielo.jpg',
     cartel: by('real-cartel') ?? '/images/real/real-cartel-noche.jpg',
   };
 }

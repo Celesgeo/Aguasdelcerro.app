@@ -32,7 +32,7 @@ export function createPageMetadata({
   title,
   description,
   path,
-  image = '/images/logo.png',
+  image = '/images/og-aguas-del-cerro.jpg',
   keywords = [],
   index = true,
 }: PageSeoOptions): Metadata {
@@ -106,13 +106,13 @@ export function createRootMetadata(): Metadata {
       siteName: SITE.name,
       title: `${SITE.name} | ${SITE.tagline}`,
       description,
-      images: [{ url: '/images/logo.png', width: 1200, height: 630, alt: SITE.name }],
+      images: [{ url: '/images/og-aguas-del-cerro.jpg', width: 1200, height: 630, alt: SITE.name }],
     },
     twitter: {
       card: 'summary_large_image',
       title: SITE.name,
       description: SITE.tagline,
-      images: ['/images/logo.png'],
+      images: ['/images/og-aguas-del-cerro.jpg'],
     },
     robots: { index: true, follow: true, googleBot: { index: true, follow: true } },
     manifest: '/manifest.json',
@@ -159,7 +159,7 @@ export function localBusinessJsonLd() {
     name: SITE.name,
     description: SITE.tagline,
     url: siteUrl,
-    image: absoluteUrl('/images/logo.png'),
+    image: absoluteUrl('/images/og-aguas-del-cerro.jpg'),
     email: SITE.email,
     address: {
       '@type': 'PostalAddress',

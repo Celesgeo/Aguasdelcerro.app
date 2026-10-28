@@ -18,7 +18,7 @@ export default function ExperienceSection() {
                 <div className="relative aspect-[16/10] overflow-hidden">
                   <Image
                     src={primary}
-                    alt="Luz dorada sobre las montañas de La Rioja"
+                    alt="Cardón florecido con las luces de la ciudad de La Rioja"
                     fill
                     className="object-cover transition-transform duration-[1.2s] group-hover:scale-[1.02]"
                     style={{ objectPosition: 'center 42%' }}
@@ -32,7 +32,7 @@ export default function ExperienceSection() {
                 <div className="relative aspect-[21/9] overflow-hidden">
                   <Image
                     src={secondary}
-                    alt="Mirador gastronómico al anochecer"
+                    alt="Mirador de noche con vista a la ciudad"
                     fill
                     className="object-cover transition-transform duration-[1.2s] group-hover:scale-[1.02]"
                     style={{ objectPosition: 'center 50%' }}

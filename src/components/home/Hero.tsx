@@ -7,9 +7,11 @@ import { useT } from '@/components/i18n/LanguageProvider';
 
 interface HeroProps {
   image: string;
+  /** Video corto en loop (sin sonido). La imagen se usa como póster y respaldo. */
+  video?: string;
 }
 
-export default function Hero({ image }: HeroProps) {
+export default function Hero({ image, video }: HeroProps) {
   const t = useT();
 
   return (
@@ -65,6 +67,20 @@ export default function Hero({ image }: HeroProps) {
               style={{ objectPosition: 'center 42%' }}
               sizes="(max-width: 1024px) 100vw, 58vw"
             />
+            {video && (
+              <video
+                className="absolute inset-0 h-full w-full object-cover motion-reduce:hidden"
+                style={{ objectPosition: 'center 42%' }}
+                src={video}
+                poster={image}
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                aria-hidden="true"
+              />
+            )}
             <div className="absolute inset-0 bg-gradient-to-t from-[#263A32]/45 via-transparent to-transparent" />
             <p className="absolute bottom-6 left-6 right-6 text-xs tracking-[0.28em] uppercase text-[#F6F0E7] font-body font-semibold drop-shadow-[0_1px_8px_rgba(38,58,50,0.8)]">
               {t('hero.photoCaption')}
