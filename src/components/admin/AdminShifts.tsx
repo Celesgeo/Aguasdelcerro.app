@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import AdminShell from '@/components/admin/AdminShell';
-import type { ShiftAvailability, ShiftSale } from '@/lib/shift-inventory';
+import type { Reservation, ShiftAvailability } from '@/lib/reservations';
 import type { VisitorShiftId } from '@/lib/visitor-shifts';
 
 const SHIFT_NAME: Record<VisitorShiftId, string> = {
@@ -12,10 +12,12 @@ const SHIFT_NAME: Record<VisitorShiftId, string> = {
   noche: 'Noche · 21 a 05 hs',
 };
 
+const ARS = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+
 export default function AdminShifts() {
   const [date, setDate] = useState('');
   const [shifts, setShifts] = useState<ShiftAvailability[]>([]);
-  const [sales, setSales] = useState<ShiftSale[]>([]);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -29,7 +31,7 @@ export default function AdminShifts() {
       if (!response.ok || !data.ok) throw new Error(data.error || 'No se pudo cargar');
       setDate(data.date);
       setShifts(data.shifts);
-      setSales(data.sales);
+      setReservations(data.reservations);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Error');
     } finally {
@@ -41,8 +43,12 @@ export default function AdminShifts() {
     void load();
   }, [load]);
 
-  const voidSale = async (id: string) => {
-    const response = await fetch(`/api/admin/shifts/${id}`, { method: 'DELETE' });
+  const cancel = async (reservation: Reservation) => {
+    const label = `${reservation.code} · ${reservation.name}`;
+    if (!window.confirm(`¿Anular la reserva ${label}? El lugar vuelve a quedar libre. Esto no devuelve el dinero en Mercado Pago.`)) {
+      return;
+    }
+    const response = await fetch(`/api/admin/shifts/${reservation.id}`, { method: 'DELETE' });
     const data = await response.json();
     if (!response.ok || !data.ok) {
       setError(data.error || 'No se pudo anular');
@@ -51,11 +57,16 @@ export default function AdminShifts() {
     void load(date);
   };
 
+  const paidTotal = reservations
+    .filter((r) => r.status === 'paid')
+    .reduce((sum, r) => sum + r.quantity, 0);
+
   return (
     <AdminShell title="Turnos">
       <p className="mb-8 max-w-2xl text-sm leading-relaxed text-brand-dark/70 font-body">
-        Cada turno arranca en cero y admite 200 membresías individuales. El cupo se descuenta al pagar.
-        Si el pago no se completó en Mercado Pago, anulá ese registro para devolver el lugar.
+        Cada turno admite 200 personas. El lugar queda guardado 30 minutos mientras la persona paga en Mercado
+        Pago y se confirma solo cuando el pago se aprueba. Si el pago se rechaza o no se completa, el lugar se libera
+        solo.
       </p>
 
       <label className="mb-8 block max-w-xs">
@@ -85,23 +96,42 @@ export default function AdminShifts() {
         ))}
       </div>
 
-      <h2 className="mb-4 font-display text-2xl text-brand-brown">Registros del día</h2>
+      <h2 className="mb-1 font-display text-2xl text-brand-brown">Reservas del día</h2>
+      <p className="mb-4 text-sm font-body text-brand-dark/60">
+        {paidTotal} {paidTotal === 1 ? 'persona confirmada' : 'personas confirmadas'}
+      </p>
       {loading ? <p className="text-sm font-body text-brand-dark/50">Cargando…</p> : null}
-      {!loading && sales.length === 0 ? (
-        <p className="text-sm font-body text-brand-dark/50">Todavía no hay membresías descontadas en este día.</p>
+      {!loading && reservations.length === 0 ? (
+        <p className="text-sm font-body text-brand-dark/50">Todavía no hay reservas en este día.</p>
       ) : null}
-      {sales.length > 0 ? (
+      {reservations.length > 0 ? (
         <ul className="divide-y divide-brand-brown/10 border border-brand-brown/15 bg-white">
-          {sales.map((sale) => (
-            <li key={sale.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-              <p className="text-sm font-body text-brand-dark">
-                {SHIFT_NAME[sale.shiftId]} · {sale.quantity}{' '}
-                {sale.quantity === 1 ? 'membresía' : 'membresías'} ·{' '}
-                {new Date(sale.createdAt).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}
-              </p>
+          {reservations.map((reservation) => (
+            <li key={reservation.id} className="flex flex-wrap items-start justify-between gap-3 px-4 py-4">
+              <div className="text-sm font-body text-brand-dark">
+                <p>
+                  <span className="font-semibold">{reservation.code}</span> · {reservation.name} ·{' '}
+                  {reservation.quantity} {reservation.quantity === 1 ? 'persona' : 'personas'} ·{' '}
+                  {ARS.format(reservation.total)}
+                </p>
+                <p className="mt-1 text-brand-dark/60">
+                  {SHIFT_NAME[reservation.shiftId]} · {reservation.email}
+                  {reservation.phone ? ` · ${reservation.phone}` : ''}
+                </p>
+                <p className="mt-1 text-xs tracking-[0.14em] uppercase">
+                  {reservation.status === 'paid' ? (
+                    <span className="text-green-800">Pagada</span>
+                  ) : (
+                    <span className="text-brand-dark/50">Esperando pago</span>
+                  )}
+                  {reservation.rescheduleCount > 0 ? (
+                    <span className="ml-3 text-brand-dark/50">Cambió de turno</span>
+                  ) : null}
+                </p>
+              </div>
               <button
                 type="button"
-                onClick={() => void voidSale(sale.id)}
+                onClick={() => void cancel(reservation)}
                 className="text-xs tracking-[0.14em] uppercase text-brand-gold font-body"
               >
                 Anular

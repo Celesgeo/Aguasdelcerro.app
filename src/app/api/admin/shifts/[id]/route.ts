@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { COOKIE_NAME, verifyAdminSessionToken } from '@/lib/admin-auth';
-import { voidShiftSale } from '@/lib/shift-inventory';
+import { cancelReservation } from '@/lib/reservations';
 
 async function requireAdmin() {
   const jar = await cookies();
@@ -17,8 +17,11 @@ export async function DELETE(
   }
 
   const { id } = await context.params;
+  if (!/^[0-9a-f-]{36}$/i.test(id)) {
+    return NextResponse.json({ ok: false, error: 'Registro no encontrado' }, { status: 404 });
+  }
   try {
-    await voidShiftSale(id);
+    await cancelReservation(id);
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ ok: false, error: 'Registro no encontrado' }, { status: 404 });

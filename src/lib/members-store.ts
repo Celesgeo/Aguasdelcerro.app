@@ -1,8 +1,14 @@
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
 import { randomInt, randomUUID } from 'node:crypto';
+import type { PoolClient } from 'pg';
+import { query, transaction } from '@/lib/db';
 import type { MembershipTierId } from '@/lib/memberships';
 import { getMembershipById } from '@/lib/memberships';
+
+/**
+ * Socios y uso de experiencias, guardados en Postgres.
+ * Mantiene las mismas funciones y formas de datos que la versión anterior en archivo JSON,
+ * así el panel /admin y la descarga del carnet siguen funcionando igual.
+ */
 
 export interface ExperienceUsage {
   id: string;
@@ -35,118 +41,124 @@ export interface MemberRecord {
   updatedAt: string;
 }
 
-interface MembersStoreFile {
-  members: MemberRecord[];
+interface MemberRow {
+  id: string;
+  access_number: string;
+  download_code: string;
+  first_name: string;
+  last_name: string;
+  email: string | null;
+  phone: string | null;
+  membership_id: string;
+  total_experiences: number;
+  remaining_experiences: number;
+  start_date: string;
+  end_date: string;
+  created_at: Date;
+  updated_at: Date;
 }
 
-const STORE_PATH = path.join(process.cwd(), 'data', 'members-store.json');
-
-const SEED: MemberRecord[] = [
-  {
-    id: 'seed-1',
-    accessNumber: 'ADC-0001',
-    downloadCode: '10245',
-    firstName: 'María',
-    lastName: 'González',
-    membershipId: 'regular',
-    totalExperiences: 25,
-    remainingExperiences: 25,
-    startDate: '2026-09-21',
-    endDate: '2027-09-21',
-    usageHistory: [],
-    createdAt: '2026-09-21T12:00:00.000Z',
-    updatedAt: '2026-09-21T12:00:00.000Z',
-  },
-  {
-    id: 'seed-2',
-    accessNumber: 'ADC-0002',
-    downloadCode: '20458',
-    firstName: 'Carlos',
-    lastName: 'Ruiz',
-    membershipId: 'plata',
-    totalExperiences: 50,
-    remainingExperiences: 50,
-    startDate: '2026-09-21',
-    endDate: '2027-09-21',
-    usageHistory: [],
-    createdAt: '2026-09-21T12:00:00.000Z',
-    updatedAt: '2026-09-21T12:00:00.000Z',
-  },
-  {
-    id: 'seed-3',
-    accessNumber: 'ADC-0003',
-    downloadCode: '30971',
-    firstName: 'Ana',
-    lastName: 'López',
-    membershipId: 'oro',
-    totalExperiences: 100,
-    remainingExperiences: 100,
-    startDate: '2026-09-21',
-    endDate: '2027-09-21',
-    usageHistory: [],
-    createdAt: '2026-09-21T12:00:00.000Z',
-    updatedAt: '2026-09-21T12:00:00.000Z',
-  },
-];
-
-async function ensureStore(): Promise<MembersStoreFile> {
-  try {
-    const raw = await fs.readFile(STORE_PATH, 'utf8');
-    const parsed = JSON.parse(raw) as MembersStoreFile;
-    if (!Array.isArray(parsed.members)) throw new Error('invalid store');
-    return parsed;
-  } catch {
-    const initial: MembersStoreFile = {
-      members: process.env.NODE_ENV === 'production' ? [] : SEED,
-    };
-    await fs.mkdir(path.dirname(STORE_PATH), { recursive: true });
-    await fs.writeFile(STORE_PATH, JSON.stringify(initial, null, 2), 'utf8');
-    return initial;
-  }
+interface UsageRow {
+  id: string;
+  member_id: string;
+  usage_date: string;
+  usage_time: string;
+  experiences_used: number;
+  note: string | null;
+  created_at: Date;
 }
 
-async function writeStore(store: MembersStoreFile): Promise<void> {
-  await fs.mkdir(path.dirname(STORE_PATH), { recursive: true });
-  await fs.writeFile(STORE_PATH, JSON.stringify(store, null, 2), 'utf8');
+function toUsage(row: UsageRow): ExperienceUsage {
+  return {
+    id: row.id,
+    date: row.usage_date,
+    time: row.usage_time,
+    experiencesUsed: row.experiences_used,
+    note: row.note ?? undefined,
+    createdAt: new Date(row.created_at).toISOString(),
+  };
 }
 
-function nowIso() {
-  return new Date().toISOString();
+function toMember(row: MemberRow, usage: UsageRow[]): MemberRecord {
+  return {
+    id: row.id,
+    accessNumber: row.access_number,
+    downloadCode: row.download_code,
+    firstName: row.first_name,
+    lastName: row.last_name,
+    email: row.email ?? undefined,
+    phone: row.phone ?? undefined,
+    membershipId: row.membership_id as MembershipTierId,
+    totalExperiences: row.total_experiences,
+    remainingExperiences: row.remaining_experiences,
+    startDate: row.start_date,
+    endDate: row.end_date,
+    usageHistory: usage.filter((u) => u.member_id === row.id).map(toUsage),
+    createdAt: new Date(row.created_at).toISOString(),
+    updatedAt: new Date(row.updated_at).toISOString(),
+  };
 }
 
-function generateDownloadCode(existing: Set<string>): string {
+async function loadMembers(where = '', values: unknown[] = []): Promise<MemberRecord[]> {
+  const members = await query<MemberRow>(`SELECT * FROM members ${where}`, values);
+  if (members.length === 0) return [];
+  const usage = await query<UsageRow>(
+    'SELECT * FROM member_usage WHERE member_id = ANY($1::uuid[]) ORDER BY created_at DESC',
+    [members.map((m) => m.id)],
+  );
+  return members.map((m) => toMember(m, usage));
+}
+
+async function loadMemberWith(client: PoolClient, id: string): Promise<MemberRecord | null> {
+  const members = (await client.query<MemberRow>('SELECT * FROM members WHERE id = $1', [id])).rows;
+  if (!members[0]) return null;
+  const usage = (
+    await client.query<UsageRow>('SELECT * FROM member_usage WHERE member_id = $1 ORDER BY created_at DESC', [id])
+  ).rows;
+  return toMember(members[0], usage);
+}
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
+async function generateDownloadCode(client: PoolClient): Promise<string> {
   for (let i = 0; i < 80; i++) {
     const code = String(randomInt(10000, 100000));
-    if (!existing.has(code)) return code;
+    const taken = await client.query('SELECT 1 FROM members WHERE download_code = $1', [code]);
+    if (taken.rows.length === 0) return code;
   }
   throw new Error('No se pudo generar un código único');
 }
 
-function generateAccessNumber(existing: Set<string>): string {
-  let n = existing.size + 1;
+async function generateAccessNumber(client: PoolClient): Promise<string> {
+  const { rows } = await client.query<{ count: number }>('SELECT count(*)::int AS count FROM members');
+  let n = Number(rows[0]?.count ?? 0) + 1;
   for (let i = 0; i < 200; i++) {
     const value = `ADC-${String(n).padStart(4, '0')}`;
-    if (!existing.has(value.toUpperCase())) return value;
+    const taken = await client.query('SELECT 1 FROM members WHERE upper(access_number) = upper($1)', [value]);
+    if (taken.rows.length === 0) return value;
     n += 1;
   }
   return `ADC-${randomUUID().slice(0, 8).toUpperCase()}`;
 }
 
 export async function listMembers(): Promise<MemberRecord[]> {
-  const store = await ensureStore();
-  return [...store.members].sort((a, b) => a.accessNumber.localeCompare(b.accessNumber));
+  const members = await loadMembers();
+  return members.sort((a, b) => a.accessNumber.localeCompare(b.accessNumber));
 }
 
 export async function getMemberById(id: string): Promise<MemberRecord | null> {
-  const store = await ensureStore();
-  return store.members.find((m) => m.id === id) ?? null;
+  if (!isUuid(id)) return null;
+  const members = await loadMembers('WHERE id = $1', [id]);
+  return members[0] ?? null;
 }
 
 export async function findMemberByDownloadCode(code: string): Promise<MemberRecord | null> {
   const normalized = code.trim();
   if (!/^\d{5}$/.test(normalized)) return null;
-  const store = await ensureStore();
-  return store.members.find((m) => m.downloadCode === normalized) ?? null;
+  const members = await loadMembers('WHERE download_code = $1', [normalized]);
+  return members[0] ?? null;
 }
 
 export type MemberInput = {
@@ -164,156 +176,185 @@ export type MemberInput = {
 };
 
 export async function createMember(input: MemberInput): Promise<MemberRecord> {
-  const store = await ensureStore();
-  const accessNumbers = new Set(store.members.map((m) => m.accessNumber.toUpperCase()));
-  const downloadCodes = new Set(store.members.map((m) => m.downloadCode));
+  return transaction(async (client) => {
+    await client.query('LOCK TABLE members IN SHARE ROW EXCLUSIVE MODE');
 
-  const tier = getMembershipById(input.membershipId);
-  const total =
-    input.totalExperiences ??
-    tier?.experiences ??
-    25;
+    const tier = getMembershipById(input.membershipId);
+    const total = input.totalExperiences ?? tier?.experiences ?? 25;
 
-  let accessNumber = (input.accessNumber || '').trim() || generateAccessNumber(accessNumbers);
-  if (accessNumbers.has(accessNumber.toUpperCase())) {
-    throw new Error('El número de acceso ya existe');
-  }
+    const accessNumber = (input.accessNumber || '').trim() || (await generateAccessNumber(client));
+    const accessTaken = await client.query('SELECT 1 FROM members WHERE upper(access_number) = upper($1)', [accessNumber]);
+    if (accessTaken.rows.length > 0) throw new Error('El número de acceso ya existe');
 
-  let downloadCode = (input.downloadCode || '').trim();
-  if (downloadCode) {
-    if (!/^\d{5}$/.test(downloadCode)) throw new Error('El código de descarga debe tener 5 dígitos');
-    if (downloadCodes.has(downloadCode)) throw new Error('El código de descarga ya existe');
-  } else {
-    downloadCode = generateDownloadCode(downloadCodes);
-  }
+    let downloadCode = (input.downloadCode || '').trim();
+    if (downloadCode) {
+      if (!/^\d{5}$/.test(downloadCode)) throw new Error('El código de descarga debe tener 5 dígitos');
+      const codeTaken = await client.query('SELECT 1 FROM members WHERE download_code = $1', [downloadCode]);
+      if (codeTaken.rows.length > 0) throw new Error('El código de descarga ya existe');
+    } else {
+      downloadCode = await generateDownloadCode(client);
+    }
 
-  const remaining =
-    typeof input.remainingExperiences === 'number' ? input.remainingExperiences : total;
+    const remaining = typeof input.remainingExperiences === 'number' ? input.remainingExperiences : total;
+    const id = randomUUID();
 
-  const member: MemberRecord = {
-    id: randomUUID(),
-    accessNumber,
-    downloadCode,
-    firstName: input.firstName.trim(),
-    lastName: input.lastName.trim(),
-    email: input.email?.trim() || undefined,
-    phone: input.phone?.trim() || undefined,
-    membershipId: input.membershipId,
-    totalExperiences: total,
-    remainingExperiences: Math.max(0, remaining),
-    startDate: input.startDate,
-    endDate: input.endDate,
-    usageHistory: [],
-    createdAt: nowIso(),
-    updatedAt: nowIso(),
-  };
+    await client.query(
+      `INSERT INTO members
+        (id, access_number, download_code, first_name, last_name, email, phone, membership_id,
+         total_experiences, remaining_experiences, start_date, end_date)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+      [
+        id,
+        accessNumber,
+        downloadCode,
+        input.firstName.trim(),
+        input.lastName.trim(),
+        input.email?.trim() || null,
+        input.phone?.trim() || null,
+        input.membershipId,
+        total,
+        Math.max(0, remaining),
+        input.startDate,
+        input.endDate,
+      ],
+    );
 
-  store.members.push(member);
-  await writeStore(store);
-  return member;
+    const member = await loadMemberWith(client, id);
+    if (!member) throw new Error('No se pudo crear el socio');
+    return member;
+  });
 }
 
 export async function updateMember(id: string, input: Partial<MemberInput>): Promise<MemberRecord> {
-  const store = await ensureStore();
-  const idx = store.members.findIndex((m) => m.id === id);
-  if (idx < 0) throw new Error('Socio no encontrado');
+  if (!isUuid(id)) throw new Error('Socio no encontrado');
 
-  const current = store.members[idx];
-  const accessNumbers = new Set(
-    store.members.filter((m) => m.id !== id).map((m) => m.accessNumber.toUpperCase()),
-  );
-  const downloadCodes = new Set(store.members.filter((m) => m.id !== id).map((m) => m.downloadCode));
+  return transaction(async (client) => {
+    const current = (await client.query<MemberRow>('SELECT * FROM members WHERE id = $1 FOR UPDATE', [id])).rows[0];
+    if (!current) throw new Error('Socio no encontrado');
 
-  if (input.accessNumber !== undefined) {
-    const next = input.accessNumber.trim();
-    if (!next) throw new Error('El número de acceso es obligatorio');
-    if (accessNumbers.has(next.toUpperCase())) throw new Error('El número de acceso ya existe');
-    current.accessNumber = next;
-  }
+    const next = { ...current };
 
-  if (input.downloadCode !== undefined) {
-    const next = input.downloadCode.trim();
-    if (!/^\d{5}$/.test(next)) throw new Error('El código de descarga debe tener 5 dígitos');
-    if (downloadCodes.has(next)) throw new Error('El código de descarga ya existe');
-    current.downloadCode = next;
-  }
+    if (input.accessNumber !== undefined) {
+      const value = input.accessNumber.trim();
+      if (!value) throw new Error('El número de acceso es obligatorio');
+      const taken = await client.query(
+        'SELECT 1 FROM members WHERE upper(access_number) = upper($1) AND id <> $2',
+        [value, id],
+      );
+      if (taken.rows.length > 0) throw new Error('El número de acceso ya existe');
+      next.access_number = value;
+    }
 
-  if (input.firstName !== undefined) current.firstName = input.firstName.trim();
-  if (input.lastName !== undefined) current.lastName = input.lastName.trim();
-  if (input.email !== undefined) current.email = input.email.trim() || undefined;
-  if (input.phone !== undefined) current.phone = input.phone.trim() || undefined;
-  if (input.membershipId !== undefined) current.membershipId = input.membershipId;
-  if (input.startDate !== undefined) current.startDate = input.startDate;
-  if (input.endDate !== undefined) current.endDate = input.endDate;
+    if (input.downloadCode !== undefined) {
+      const value = input.downloadCode.trim();
+      if (!/^\d{5}$/.test(value)) throw new Error('El código de descarga debe tener 5 dígitos');
+      const taken = await client.query('SELECT 1 FROM members WHERE download_code = $1 AND id <> $2', [value, id]);
+      if (taken.rows.length > 0) throw new Error('El código de descarga ya existe');
+      next.download_code = value;
+    }
 
-  if (typeof input.totalExperiences === 'number') {
-    current.totalExperiences = Math.max(0, input.totalExperiences);
-  }
-  if (typeof input.remainingExperiences === 'number') {
-    current.remainingExperiences = Math.max(0, input.remainingExperiences);
-  }
+    if (input.firstName !== undefined) next.first_name = input.firstName.trim();
+    if (input.lastName !== undefined) next.last_name = input.lastName.trim();
+    if (input.email !== undefined) next.email = input.email.trim() || null;
+    if (input.phone !== undefined) next.phone = input.phone.trim() || null;
+    if (input.membershipId !== undefined) next.membership_id = input.membershipId;
+    if (input.startDate !== undefined) next.start_date = input.startDate;
+    if (input.endDate !== undefined) next.end_date = input.endDate;
+    if (typeof input.totalExperiences === 'number') next.total_experiences = Math.max(0, input.totalExperiences);
+    if (typeof input.remainingExperiences === 'number') {
+      next.remaining_experiences = Math.max(0, input.remainingExperiences);
+    }
 
-  current.updatedAt = nowIso();
-  store.members[idx] = current;
-  await writeStore(store);
-  return current;
+    await client.query(
+      `UPDATE members SET
+        access_number = $2, download_code = $3, first_name = $4, last_name = $5, email = $6, phone = $7,
+        membership_id = $8, total_experiences = $9, remaining_experiences = $10, start_date = $11, end_date = $12,
+        updated_at = now()
+       WHERE id = $1`,
+      [
+        id,
+        next.access_number,
+        next.download_code,
+        next.first_name,
+        next.last_name,
+        next.email,
+        next.phone,
+        next.membership_id,
+        next.total_experiences,
+        next.remaining_experiences,
+        next.start_date,
+        next.end_date,
+      ],
+    );
+
+    const member = await loadMemberWith(client, id);
+    if (!member) throw new Error('Socio no encontrado');
+    return member;
+  });
 }
 
 export async function deleteMember(id: string): Promise<void> {
-  const store = await ensureStore();
-  const next = store.members.filter((m) => m.id !== id);
-  if (next.length === store.members.length) throw new Error('Socio no encontrado');
-  store.members = next;
-  await writeStore(store);
+  if (!isUuid(id)) throw new Error('Socio no encontrado');
+  const rows = await query<{ id: string }>('DELETE FROM members WHERE id = $1 RETURNING id', [id]);
+  if (!rows[0]) throw new Error('Socio no encontrado');
 }
 
 export async function addUsage(
   id: string,
   data: { date: string; time: string; experiencesUsed: number; note?: string },
 ): Promise<MemberRecord> {
-  const store = await ensureStore();
-  const idx = store.members.findIndex((m) => m.id === id);
-  if (idx < 0) throw new Error('Socio no encontrado');
+  if (!isUuid(id)) throw new Error('Socio no encontrado');
 
-  const member = store.members[idx];
-  const used = Math.max(1, Math.floor(data.experiencesUsed));
-  if (used > member.remainingExperiences) {
-    throw new Error(`Solo quedan ${member.remainingExperiences} experiencias disponibles`);
-  }
+  return transaction(async (client) => {
+    const current = (await client.query<MemberRow>('SELECT * FROM members WHERE id = $1 FOR UPDATE', [id])).rows[0];
+    if (!current) throw new Error('Socio no encontrado');
 
-  const entry: ExperienceUsage = {
-    id: randomUUID(),
-    date: data.date,
-    time: data.time,
-    experiencesUsed: used,
-    note: data.note?.trim() || undefined,
-    createdAt: nowIso(),
-  };
+    const used = Math.max(1, Math.floor(data.experiencesUsed));
+    if (used > current.remaining_experiences) {
+      throw new Error(`Solo quedan ${current.remaining_experiences} experiencias disponibles`);
+    }
 
-  member.usageHistory = [entry, ...member.usageHistory];
-  member.remainingExperiences -= used;
-  member.updatedAt = nowIso();
-  store.members[idx] = member;
-  await writeStore(store);
-  return member;
+    await client.query(
+      `INSERT INTO member_usage (id, member_id, usage_date, usage_time, experiences_used, note)
+       VALUES ($1,$2,$3,$4,$5,$6)`,
+      [randomUUID(), id, data.date, data.time, used, data.note?.trim() || null],
+    );
+    await client.query(
+      'UPDATE members SET remaining_experiences = remaining_experiences - $2, updated_at = now() WHERE id = $1',
+      [id, used],
+    );
+
+    const member = await loadMemberWith(client, id);
+    if (!member) throw new Error('Socio no encontrado');
+    return member;
+  });
 }
 
 export async function deleteUsage(memberId: string, usageId: string): Promise<MemberRecord> {
-  const store = await ensureStore();
-  const idx = store.members.findIndex((m) => m.id === memberId);
-  if (idx < 0) throw new Error('Socio no encontrado');
+  if (!isUuid(memberId) || !isUuid(usageId)) throw new Error('Registro de uso no encontrado');
 
-  const member = store.members[idx];
-  const usage = member.usageHistory.find((u) => u.id === usageId);
-  if (!usage) throw new Error('Registro de uso no encontrado');
+  return transaction(async (client) => {
+    const current = (await client.query<MemberRow>('SELECT * FROM members WHERE id = $1 FOR UPDATE', [memberId]))
+      .rows[0];
+    if (!current) throw new Error('Socio no encontrado');
 
-  member.usageHistory = member.usageHistory.filter((u) => u.id !== usageId);
-  member.remainingExperiences = Math.min(
-    member.totalExperiences,
-    member.remainingExperiences + usage.experiencesUsed,
-  );
-  member.updatedAt = nowIso();
-  store.members[idx] = member;
-  await writeStore(store);
-  return member;
+    const removed = (
+      await client.query<UsageRow>(
+        'DELETE FROM member_usage WHERE id = $1 AND member_id = $2 RETURNING *',
+        [usageId, memberId],
+      )
+    ).rows[0];
+    if (!removed) throw new Error('Registro de uso no encontrado');
+
+    await client.query(
+      `UPDATE members
+       SET remaining_experiences = LEAST(total_experiences, remaining_experiences + $2), updated_at = now()
+       WHERE id = $1`,
+      [memberId, removed.experiences_used],
+    );
+
+    const member = await loadMemberWith(client, memberId);
+    if (!member) throw new Error('Socio no encontrado');
+    return member;
+  });
 }

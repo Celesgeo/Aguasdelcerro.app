@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { COOKIE_NAME, verifyAdminSessionToken } from '@/lib/admin-auth';
-import { getShiftAvailability, listShiftSales } from '@/lib/shift-inventory';
+import { getShiftAvailability, listReservationsForDate } from '@/lib/reservations';
 import { bookingWindow, isRealCalendarDate } from '@/lib/visitor-shifts';
 
 async function requireAdmin() {
@@ -21,6 +21,14 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, error: 'Fecha inválida' }, { status: 400 });
   }
 
-  const [shifts, sales] = await Promise.all([getShiftAvailability(date), listShiftSales(date)]);
-  return NextResponse.json({ ok: true, date, shifts, sales });
+  try {
+    const [shifts, reservations] = await Promise.all([
+      getShiftAvailability(date),
+      listReservationsForDate(date),
+    ]);
+    return NextResponse.json({ ok: true, date, shifts, reservations });
+  } catch (error) {
+    console.error('[admin/shifts]', error);
+    return NextResponse.json({ ok: false, error: 'No se pudo leer la base de datos' }, { status: 500 });
+  }
 }

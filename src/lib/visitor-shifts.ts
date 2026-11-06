@@ -66,6 +66,16 @@ export function isRealCalendarDate(isoDate: string): boolean {
   );
 }
 
+/** Momento en que empieza el turno (Argentina, UTC−3). */
+export function shiftStartInstant(date: string, shiftId: VisitorShiftId): Date {
+  const shift = getVisitorShift(shiftId);
+  const [year, month, day] = date.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day, shift.startHour + 3, 0, 0, 0));
+}
+
+/** Horas de anticipación mínimas para que el cliente cambie día o turno. */
+export const RESCHEDULE_MIN_HOURS = 48;
+
 /** Argentina no usa horario de verano: UTC−3 todo el año. */
 export function shiftEndInstant(date: string, shiftId: VisitorShiftId): Date {
   const shift = getVisitorShift(shiftId);

@@ -6,7 +6,9 @@ FROM base AS deps
 WORKDIR /app
 RUN apk add --no-cache libc6-compat
 COPY package.json package-lock.json ./
-RUN npm ci
+# `npm install` (no `npm ci`) para sumar `pg` sin regenerar el lockfile a mano.
+# Cuando se corra `npm install` localmente y se suba el package-lock.json, volver a `npm ci`.
+RUN npm install --no-audit --no-fund
 
 FROM base AS builder
 WORKDIR /app

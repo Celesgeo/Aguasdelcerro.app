@@ -1,181 +1,26 @@
 import type { Metadata } from 'next';
 import { Check } from 'lucide-react';
 import JsonLd from '@/components/seo/JsonLd';
+import Tx from '@/components/i18n/Tx';
 import SectionHeading from '@/components/shared/SectionHeading';
 import ScrollReveal from '@/components/shared/ScrollReveal';
 import Button from '@/components/shared/Button';
-import MembershipInquiryForm from '@/components/membresias/MembershipInquiryForm';
 import MembershipDownload from '@/components/membresias/MembershipDownload';
-import {
-  MEMBERSHIP_TIERS,
-  VISITOR_TIER,
-  formatARS,
-  formatMembershipPrice,
-  type MembershipTier,
-} from '@/lib/memberships';
-import { getPaymentLink } from '@/lib/payment-links';
+import { TICKET_PRICE_ARS, formatARS } from '@/lib/memberships';
 import { breadcrumbJsonLd, createPageMetadata } from '@/lib/seo';
 
 export const metadata: Metadata = createPageMetadata({
   title: 'Membresías',
   description:
-    'Membresías personales y Empresa Fundadora de Aguas del Cerro. Experiencias transferibles con beneficios exclusivos en La Rioja.',
+    'Membresía visitante individual de Aguas del Cerro: un ingreso por persona en el día y turno que elijas. Pago online con Mercado Pago. La Rioja, Argentina.',
   path: '/membresias',
-  keywords: ['membresías', 'club térmico', 'beneficios exclusivos'],
+  keywords: ['membresía visitante', 'membresía individual', 'reservas', 'La Rioja'],
 });
 
-function TierCard({
-  tier,
-  delay = 0,
-  dark = false,
-  payHref,
-  hideInquiry = false,
-}: {
-  tier: MembershipTier;
-  delay?: number;
-  dark?: boolean;
-  payHref?: string;
-  hideInquiry?: boolean;
-}) {
-  const highlighted = Boolean(tier.highlight) || dark;
-  const paymentLink = payHref ?? getPaymentLink(tier.id);
-  const shortName = tier.name
-    .replace('Membresía ', '')
-    .replace('Empresa Fundadora ', '')
-    .replace('Empresa Fundadora', 'Fundadora');
-
-  return (
-    <ScrollReveal delay={delay}>
-      <article
-        className={`h-full flex flex-col border p-8 ${
-          highlighted
-            ? 'border-brand-gold bg-brand-brown text-brand-cream'
-            : 'border-brand-brown/15 bg-white text-brand-dark'
-        }`}
-      >
-        {tier.highlight && (
-          <p className="mb-4 text-[11px] tracking-[0.3em] uppercase text-brand-gold font-body">
-            Más elegida
-          </p>
-        )}
-        <h2
-          className={`font-display text-3xl mb-2 ${
-            highlighted ? 'text-brand-cream' : 'text-brand-brown'
-          }`}
-        >
-          {shortName}
-        </h2>
-        <p
-          className={`text-sm font-body mb-4 ${
-            highlighted ? 'text-brand-cream/70' : 'text-brand-dark/55'
-          }`}
-        >
-          {tier.tagline}
-        </p>
-        <p className={`text-xs font-body mb-1 ${highlighted ? 'text-brand-gold' : 'text-brand-dark/45'}`}>
-          {tier.forWhom}
-        </p>
-
-        <div className="my-6">
-          {tier.listValue ? (
-            <p
-              className={`text-sm line-through font-body ${
-                highlighted ? 'text-brand-cream/40' : 'text-brand-dark/35'
-              }`}
-            >
-              {formatARS(tier.listValue)}
-            </p>
-          ) : null}
-          <p className={`font-display text-4xl ${highlighted ? 'text-brand-gold' : 'text-brand-brown'}`}>
-            {formatMembershipPrice(tier)}
-          </p>
-          {tier.currency === 'USD' ? (
-            <p
-              className={`mt-2 text-sm font-body tracking-[0.08em] uppercase ${
-                highlighted ? 'text-brand-gold' : 'text-brand-brown'
-              }`}
-            >
-              Precio en USD · dólares estadounidenses
-            </p>
-          ) : null}
-          {tier.savingsPercent ? (
-            <p
-              className={`mt-2 text-sm font-body ${
-                highlighted ? 'text-brand-cream/75' : 'text-brand-dark/60'
-              }`}
-            >
-              Ahorrás {formatARS(tier.savings ?? 0)} · {tier.savingsPercent}% menos
-            </p>
-          ) : null}
-          {tier.experiences && tier.unitPrice ? (
-            <p
-              className={`mt-1 text-xs font-body ${
-                highlighted ? 'text-brand-cream/45' : 'text-brand-dark/40'
-              }`}
-            >
-              Valor unitario {formatARS(tier.unitPrice)} × {tier.experiences}
-            </p>
-          ) : null}
-          {tier.currency === 'USD' && tier.experiences ? (
-            <p
-              className={`mt-1 text-xs font-body ${
-                highlighted ? 'text-brand-cream/45' : 'text-brand-dark/40'
-              }`}
-            >
-              Incluye {tier.experiences} experiencias · valor en dólares (USD)
-            </p>
-          ) : null}
-        </div>
-
-        <ul className="space-y-3 mb-6 flex-1">
-          {tier.benefits.map((benefit) => (
-            <li key={benefit} className="flex gap-3 text-sm font-body leading-snug">
-              <Check
-                size={16}
-                className={`mt-0.5 shrink-0 ${highlighted ? 'text-brand-gold' : 'text-brand-brown'}`}
-              />
-              <span className={highlighted ? 'text-brand-cream/85' : 'text-brand-dark/75'}>
-                {benefit}
-              </span>
-            </li>
-          ))}
-        </ul>
-
-        {tier.note && (
-          <p
-            className={`mb-6 text-xs leading-relaxed font-body ${
-              highlighted ? 'text-brand-cream/55' : 'text-brand-dark/50'
-            }`}
-          >
-            {tier.note}
-          </p>
-        )}
-
-        <div className="mt-auto flex flex-col gap-3">
-          {paymentLink ? (
-            <Button href={paymentLink} variant={highlighted ? 'primary' : 'ghost'} className="w-full">
-              Pagar ahora
-            </Button>
-          ) : null}
-          {hideInquiry ? null : (
-            <Button
-              href="#consulta"
-              variant={paymentLink ? 'ghost' : highlighted ? 'primary' : 'ghost'}
-              className="w-full"
-            >
-              {paymentLink ? 'Consultar' : 'Consultar / Reservar'}
-            </Button>
-          )}
-        </div>
-      </article>
-    </ScrollReveal>
-  );
-}
+const INCLUDES = ['include1', 'include2', 'include3'] as const;
+const EXTRAS = ['extra1', 'extra2'] as const;
 
 export default function MembresiasPage() {
-  const personal = MEMBERSHIP_TIERS.filter((t) => t.category === 'personal');
-  const empresas = MEMBERSHIP_TIERS.filter((t) => t.category === 'empresa');
-
   return (
     <div className="bg-brand-cream min-h-screen">
       <JsonLd
@@ -196,58 +41,56 @@ export default function MembresiasPage() {
         </div>
       </section>
 
-      <section className="pb-20 px-6 lg:px-10">
-        <div className="mx-auto max-w-7xl">
-          <div className="grid gap-6 lg:grid-cols-3">
-            <TierCard tier={VISITOR_TIER} payHref="/reservas" hideInquiry />
-          </div>
-          <div className="mt-6 grid gap-6 lg:grid-cols-3">
-            {personal.map((tier, i) => (
-              <TierCard key={tier.id} tier={tier} delay={i * 0.08} />
-            ))}
-          </div>
-        </div>
+      <section className="pb-24 px-6 lg:px-10">
+        <ScrollReveal className="mx-auto max-w-xl">
+          <article className="flex flex-col border border-brand-gold bg-brand-brown p-8 md:p-10 text-brand-cream">
+            <p className="mb-3 text-[11px] tracking-[0.3em] uppercase text-brand-gold font-body">
+              <Tx k="pages.reservations.ticketEyebrow" />
+            </p>
+            <h2 className="font-display text-3xl text-brand-cream">
+              <Tx k="pages.reservations.ticketTitle" />
+            </h2>
+            <p className="mt-6 font-display text-5xl text-brand-gold">{formatARS(TICKET_PRICE_ARS)}</p>
+            <p className="mt-3 text-sm leading-relaxed font-body text-brand-cream/75">
+              <Tx k="pages.reservations.ticketDetail" />
+            </p>
+
+            <ul className="mt-6 space-y-3 font-body text-sm">
+              {INCLUDES.map((key) => (
+                <li key={key} className="flex gap-3">
+                  <Check size={16} className="mt-0.5 shrink-0 text-brand-gold" aria-hidden="true" />
+                  <span className="text-brand-cream/85">
+                    <Tx k={`pages.reservations.${key}`} />
+                  </span>
+                </li>
+              ))}
+            </ul>
+
+            <p className="mt-6 text-[11px] tracking-[0.25em] uppercase text-brand-gold font-body">
+              <Tx k="pages.reservations.extrasTitle" />
+            </p>
+            <ul className="mt-2 space-y-1 font-body text-sm text-brand-cream/70">
+              {EXTRAS.map((key) => (
+                <li key={key}>
+                  <Tx k={`pages.reservations.${key}`} />
+                </li>
+              ))}
+            </ul>
+
+            <p className="mt-6 text-xs leading-relaxed font-body text-brand-cream/60">
+              <Tx k="pages.reservations.minors" />
+            </p>
+
+            <div className="mt-8">
+              <Button href="/reservas" className="w-full">
+                <Tx k="pages.memberships.cardCta" />
+              </Button>
+            </div>
+          </article>
+        </ScrollReveal>
       </section>
 
-      <section id="empresas" className="pb-24 px-6 lg:px-10 scroll-mt-24">
-        <div className="mx-auto max-w-4xl mb-12">
-          <SectionHeading
-            i18n={{
-              eyebrow: 'pages.memberships.companiesKicker',
-              title: 'pages.memberships.companiesTitle',
-              description: 'pages.memberships.companiesDescription',
-            }}
-          />
-        </div>
-        <div className="mx-auto max-w-7xl grid gap-6 lg:grid-cols-3">
-          {empresas.map((tier, i) => (
-            <TierCard
-              key={tier.id}
-              tier={tier}
-              delay={i * 0.08}
-              dark={tier.id === 'empresa_oro'}
-            />
-          ))}
-        </div>
-      </section>
-
-      <section id="consulta" className="py-24 bg-brand-brown px-6 lg:px-10 scroll-mt-24">
-        <div className="mx-auto max-w-4xl">
-          <SectionHeading
-            light
-            i18n={{
-              eyebrow: 'pages.memberships.inquiryKicker',
-              title: 'pages.memberships.inquiryTitle',
-              description: 'pages.memberships.inquiryDescription',
-            }}
-          />
-          <div className="mt-4 rounded-sm bg-brand-cream/95 p-6 md:p-10">
-            <MembershipInquiryForm />
-          </div>
-        </div>
-      </section>
-
-      <section id="descarga" className="py-24 px-6 lg:px-10 scroll-mt-24">
+      <section id="descarga" className="py-24 px-6 lg:px-10 scroll-mt-24 border-t border-brand-brown/10">
         <div className="mx-auto max-w-4xl">
           <SectionHeading
             i18n={{

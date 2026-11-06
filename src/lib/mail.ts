@@ -432,3 +432,105 @@ function escapeHtml(value: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 }
+
+/* ------------------------------------------------------------------ */
+/* Correos transaccionales (confirmación de reservas, etc.)           */
+/* ------------------------------------------------------------------ */
+
+export type TransactionalEmail = {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+  replyTo?: string;
+};
+
+/** Correo que recibe las copias de reservas. Por defecto, el mismo de las postulaciones. */
+export function getReservationsNotifyEmail(): string {
+  return process.env.RESERVATIONS_NOTIFY_EMAIL?.trim() || getCareersNotifyEmail();
+}
+
+async function sendTransactionalViaSmtp(mail: TransactionalEmail, config: SmtpConfig): Promise<void> {
+  const from = process.env.SMTP_FROM?.trim() || config.auth.user;
+  const transporter = nodemailer.createTransport({
+    host: config.host,
+    port: 587,
+    secure: false,
+    auth: config.auth,
+    family: 4,
+    connectionTimeout: 5_000,
+    greetingTimeout: 5_000,
+    socketTimeout: 8_000,
+    requireTLS: true,
+    tls: { minVersion: 'TLSv1.2' },
+  } as nodemailer.TransportOptions);
+
+  await transporter.sendMail({
+    from: `"${SITE.name}" <${from}>`,
+    to: mail.to,
+    ...(mail.replyTo ? { replyTo: mail.replyTo } : {}),
+    subject: mail.subject,
+    text: mail.text,
+    html: mail.html,
+  });
+}
+
+async function sendTransactionalViaResend(mail: TransactionalEmail, apiKey: string, from: string): Promise<void> {
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from,
+      to: [mail.to],
+      ...(mail.replyTo ? { reply_to: mail.replyTo } : {}),
+      subject: mail.subject,
+      html: mail.html,
+      text: mail.text,
+    }),
+  });
+  if (!response.ok) {
+    const error = await readJson(response);
+    throw new Error(String(error?.message ?? `Resend rechazó el envío (${response.status})`));
+  }
+}
+
+/**
+ * Envía un correo a cualquier destinatario. Intenta primero Resend con el remitente
+ * configurado (RESEND_FROM, dominio verificado) y después Gmail SMTP.
+ * El remitente de prueba de Resend (onboarding@resend.dev) no se usa acá porque
+ * solo puede escribirle al dueño de la cuenta, no a clientes.
+ */
+export async function sendTransactionalEmail(mail: TransactionalEmail): Promise<void> {
+  const errors: string[] = [];
+
+  const resendKey = getResendKey();
+  const resendFrom = process.env.RESEND_FROM?.trim();
+  if (resendKey && resendFrom && !isResendQuotaBlocked()) {
+    try {
+      await sendTransactionalViaResend(mail, resendKey, resendFrom);
+      return;
+    } catch (error) {
+      const message = errorMessage(error);
+      console.error('[mail] Resend (transaccional) falló:', message);
+      errors.push(`resend: ${message}`);
+      if (isResendQuotaError(message)) blockResendUntilQuotaReset();
+    }
+  }
+
+  const smtp = getSmtpConfig();
+  if (smtp) {
+    try {
+      await sendTransactionalViaSmtp(mail, smtp);
+      return;
+    } catch (error) {
+      const message = errorMessage(error);
+      console.error('[mail] SMTP (transaccional) falló:', message);
+      errors.push(`smtp: ${message}`);
+    }
+  }
+
+  throw new Error(errors.length > 0 ? errors.join(' | ') : 'No hay un servicio de correo configurado');
+}
