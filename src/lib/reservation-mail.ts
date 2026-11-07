@@ -3,7 +3,7 @@ import { formatARS } from '@/lib/memberships';
 import { getReservationsNotifyEmail, sendTransactionalEmail } from '@/lib/mail';
 import { rescheduleDeadline, type Reservation } from '@/lib/reservations';
 import { getSiteUrl } from '@/lib/site-url';
-import { getVisitorShift } from '@/lib/visitor-shifts';
+import { formatMinutes, getVisitorShift, shiftLabel } from '@/lib/visitor-shifts';
 
 const TZ = 'America/Argentina/Buenos_Aires';
 
@@ -29,17 +29,15 @@ export function formatVisitDate(isoDate: string): string {
   return `${weekday} ${pad(d)}/${pad(m)}/${y}`;
 }
 
-/** "Mañana · 8 a 12 hs" */
+/** "Mañana · 07:30 a 12:30 hs" */
 export function formatShift(shiftId: Reservation['shiftId']): string {
-  const shift = getVisitorShift(shiftId);
-  const names: Record<string, string> = { manana: 'Mañana', siesta: 'Siesta', tarde: 'Tarde', noche: 'Noche' };
-  return `${names[shift.id]} · ${pad(shift.startHour)} a ${pad(shift.endHour)} hs`;
+  return shiftLabel(shiftId);
 }
 
 /** Regla de ingreso del turno, en una frase. */
 export function entryRule(shiftId: Reservation['shiftId']): string {
   const shift = getVisitorShift(shiftId);
-  return `Podés ingresar entre las ${pad(shift.startHour)} y las ${pad(shift.endHour)} hs. Después de las ${pad(shift.endHour)} hs no se permite el ingreso con esta reserva.`;
+  return `El ingreso se realiza dentro del horario de su turno, de ${formatMinutes(shift.start)} a ${formatMinutes(shift.end)} hs.`;
 }
 
 function formatDeadline(reservation: Reservation): string {
@@ -79,11 +77,11 @@ function layout(title: string, inner: string): string {
 }
 
 function customerEmail(reservation: Reservation, kind: 'confirmed' | 'rescheduled') {
-  const title = kind === 'confirmed' ? 'Tu reserva está confirmada' : 'Cambiaste tu reserva';
+  const title = kind === 'confirmed' ? 'Su reserva está confirmada' : 'Su reserva fue modificada';
   const intro =
     kind === 'confirmed'
-      ? `Hola ${reservation.name}, recibimos tu pago. Te esperamos.`
-      : `Hola ${reservation.name}, tu reserva quedó con el nuevo día y turno.`;
+      ? `Estimado/a ${reservation.name}, hemos recibido su pago. Será un placer darle la bienvenida en Aguas del Cerro.`
+      : `Estimado/a ${reservation.name}, su reserva quedó registrada con la nueva fecha y el nuevo turno.`;
   const date = formatVisitDate(reservation.date);
   const shift = formatShift(reservation.shiftId);
   const url = manageUrl(reservation);
@@ -94,20 +92,20 @@ function customerEmail(reservation: Reservation, kind: 'confirmed' | 'reschedule
 <p style="margin:0 0 6px;font-size:13px;color:#8a7a5c">Código de reserva</p>
 <p style="margin:0 0 18px;font-size:28px;letter-spacing:2px;font-family:'Courier New',monospace;color:#4a3524">${escapeHtml(reservation.code)}</p>
 <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-top:1px solid #efe6d4;border-bottom:1px solid #efe6d4;margin-bottom:18px">
-${row('Día', date)}
+${row('Fecha', date)}
 ${row('Turno', shift)}
 ${row('Personas', people(reservation.quantity))}
 ${row('Membresía', 'Visitante individual')}
 ${kind === 'confirmed' ? row('Total pagado', formatARS(reservation.total)) : ''}
 </table>
 <p style="margin:0 0 6px"><strong>Ingreso:</strong> ${escapeHtml(entryRule(reservation.shiftId))}</p>
-<p style="margin:0 0 6px"><strong>En la entrada:</strong> mostrá este correo o decí tu código de reserva.</p>
-<p style="margin:0 0 6px"><strong>Qué traer:</strong> traje de baño. Hay batas en alquiler, baños y vestuarios en el lugar.</p>
-<p style="margin:0 0 6px"><strong>Menores:</strong> pagan desde los 10 años y siempre ingresan con un adulto responsable.</p>
-<p style="margin:0 0 18px"><strong>Gastronomía y estacionamiento:</strong> hay gastronomía en el lugar (se paga aparte) y estacionamiento.</p>
-<p style="margin:0 0 8px">¿Necesitás cambiar el día o el turno? Podés hacerlo vos hasta el <strong>${escapeHtml(formatDeadline(reservation))} hs</strong> (48 horas antes de tu turno).</p>
-<p style="margin:0 0 4px"><a href="${url}" style="display:inline-block;background:#4a3524;color:#ffffff;text-decoration:none;padding:12px 22px;font-size:13px;letter-spacing:1px;text-transform:uppercase">Ver o cambiar mi reserva</a></p>
-<p style="margin:16px 0 0;font-size:12px;color:#8a7a5c">El parque funciona con cualquier clima. Los cambios por lluvia o frío siguen la misma regla de 48 horas.</p>`,
+<p style="margin:0 0 6px"><strong>Al llegar:</strong> presente este correo o indique su código de reserva.</p>
+<p style="margin:0 0 6px"><strong>Qué traer:</strong> traje de baño.</p>
+<p style="margin:0 0 6px"><strong>Menores:</strong> abonan a partir de los 10 años y con supervisión de un adulto responsable.</p>
+<p style="margin:0 0 6px"><strong>Incluye:</strong> acceso al predio y a las piletas, sanitarios, vestuarios y estacionamiento.</p>
+<p style="margin:0 0 18px"><strong>Servicios adicionales:</strong> propuesta gastronómica y alquiler de batas.</p>
+<p style="margin:0 0 8px">Puede modificar la fecha o el turno hasta el <strong>${escapeHtml(formatDeadline(reservation))} hs</strong>, 48 horas antes de su turno. El parque funciona con cualquier clima.</p>
+<p style="margin:0 0 4px"><a href="${url}" style="display:inline-block;background:#4a3524;color:#ffffff;text-decoration:none;padding:12px 22px;font-size:13px;letter-spacing:1px;text-transform:uppercase">Consultar o modificar mi reserva</a></p>`,
   );
 
   const text = [
@@ -123,13 +121,14 @@ ${kind === 'confirmed' ? row('Total pagado', formatARS(reservation.total)) : ''}
     ...(kind === 'confirmed' ? [`Total pagado: ${formatARS(reservation.total)}`] : []),
     '',
     `Ingreso: ${entryRule(reservation.shiftId)}`,
-    'En la entrada: mostrá este correo o decí tu código de reserva.',
-    'Qué traer: traje de baño. Hay batas en alquiler, baños y vestuarios en el lugar.',
-    'Menores: pagan desde los 10 años y siempre ingresan con un adulto responsable.',
-    'Hay gastronomía (se paga aparte) y estacionamiento.',
+    'Al llegar: presente este correo o indique su código de reserva.',
+    'Qué traer: traje de baño.',
+    'Menores: abonan a partir de los 10 años y con supervisión de un adulto responsable.',
+    'Incluye: acceso al predio y a las piletas, sanitarios, vestuarios y estacionamiento.',
+    'Servicios adicionales: propuesta gastronómica y alquiler de batas.',
     '',
-    `Podés cambiar el día o el turno hasta el ${formatDeadline(reservation)} hs (48 horas antes): ${url}`,
-    'El parque funciona con cualquier clima. Los cambios por lluvia o frío siguen la misma regla de 48 horas.',
+    `Puede modificar la fecha o el turno hasta el ${formatDeadline(reservation)} hs, 48 horas antes de su turno: ${url}`,
+    'El parque funciona con cualquier clima.',
     '',
     `Cómo llegar: ${SITE.mapsUrl}`,
     `WhatsApp: +${SITE.whatsappPrimary}`,
@@ -147,7 +146,7 @@ function staffEmail(reservation: Reservation, kind: 'confirmed' | 'rescheduled',
     ['Nombre', reservation.name],
     ['Correo', reservation.email],
     ['Teléfono', reservation.phone ?? '—'],
-    ['Día', date],
+    ['Fecha', date],
     ['Turno', shift],
     ['Personas', people(reservation.quantity)],
     ['Total', formatARS(reservation.total)],

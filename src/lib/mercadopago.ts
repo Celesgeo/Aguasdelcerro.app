@@ -1,6 +1,7 @@
 import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import { getSiteUrl } from '@/lib/site-url';
 import type { Reservation } from '@/lib/reservations';
+import { shiftLabel } from '@/lib/visitor-shifts';
 
 /**
  * Mercado Pago · Checkout Pro (API de preferencias).
@@ -42,13 +43,6 @@ async function mpFetch(path: string, init: RequestInit = {}): Promise<Response> 
   });
 }
 
-const SHIFT_TEXT: Record<string, string> = {
-  manana: 'Mañana 8 a 12 hs',
-  siesta: 'Siesta 12 a 16 hs',
-  tarde: 'Tarde 16 a 21 hs',
-  noche: 'Noche 21 a 05 hs',
-};
-
 function readableDate(isoDate: string): string {
   const [y, m, d] = isoDate.split('-');
   return `${d}/${m}/${y}`;
@@ -72,7 +66,7 @@ export async function createCheckoutPreference(
         {
           id: 'membresia-visitante-individual',
           title: 'Membresía visitante individual · Aguas del Cerro',
-          description: `${readableDate(reservation.date)} · ${SHIFT_TEXT[reservation.shiftId] ?? reservation.shiftId}`,
+          description: `${readableDate(reservation.date)} · ${shiftLabel(reservation.shiftId)}`,
           quantity: reservation.quantity,
           unit_price: reservation.unitPrice,
           currency_id: 'ARS',

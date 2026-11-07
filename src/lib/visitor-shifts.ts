@@ -4,11 +4,15 @@ export const VISITOR_SHIFT_HORIZON_DAYS = 90;
 
 const ARGENTINA_TZ = 'America/Argentina/Buenos_Aires';
 
+/**
+ * Turnos del parque. Horarios en minutos desde la medianoche (hora de Argentina).
+ * `name` y `hours` son los textos que se muestran en el panel, los correos y Mercado Pago.
+ */
 export const VISITOR_SHIFTS = [
-  { id: 'manana', startHour: 8, endHour: 12, endsNextDay: false },
-  { id: 'siesta', startHour: 12, endHour: 16, endsNextDay: false },
-  { id: 'tarde', startHour: 16, endHour: 21, endsNextDay: false },
-  { id: 'noche', startHour: 21, endHour: 5, endsNextDay: true },
+  { id: 'manana', name: 'Mañana', start: 7 * 60 + 30, end: 12 * 60 + 30, endsNextDay: false, hours: '07:30 a 12:30 hs' },
+  { id: 'tarde', name: 'Tarde', start: 12 * 60 + 30, end: 18 * 60 + 30, endsNextDay: false, hours: '12:30 a 18:30 hs' },
+  { id: 'noche', name: 'Noche', start: 18 * 60 + 30, end: 23 * 60 + 30, endsNextDay: false, hours: '18:30 a 23:30 hs' },
+  { id: 'trasnoche', name: 'Trasnoche', start: 23 * 60 + 30, end: 4 * 60 + 30, endsNextDay: true, hours: '23:30 a 04:30 hs' },
 ] as const;
 
 export type VisitorShiftId = (typeof VISITOR_SHIFTS)[number]['id'];
@@ -17,6 +21,17 @@ export type VisitorShiftStatus = 'available' | 'sold_out' | 'ended';
 
 export function isVisitorShiftId(value: string): value is VisitorShiftId {
   return VISITOR_SHIFTS.some((shift) => shift.id === value);
+}
+
+/** "Mañana · 07:30 a 12:30 hs" */
+export function shiftLabel(id: VisitorShiftId): string {
+  const shift = getVisitorShift(id);
+  return `${shift.name} · ${shift.hours}`;
+}
+
+/** "07:30" */
+export function formatMinutes(total: number): string {
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
 }
 
 export function getVisitorShift(id: VisitorShiftId) {
@@ -70,7 +85,7 @@ export function isRealCalendarDate(isoDate: string): boolean {
 export function shiftStartInstant(date: string, shiftId: VisitorShiftId): Date {
   const shift = getVisitorShift(shiftId);
   const [year, month, day] = date.split('-').map(Number);
-  return new Date(Date.UTC(year, month - 1, day, shift.startHour + 3, 0, 0, 0));
+  return new Date(Date.UTC(year, month - 1, day, 3, shift.start, 0, 0));
 }
 
 /** Horas de anticipación mínimas para que el cliente cambie día o turno. */
@@ -81,12 +96,14 @@ export function shiftEndInstant(date: string, shiftId: VisitorShiftId): Date {
   const shift = getVisitorShift(shiftId);
   const [year, month, day] = date.split('-').map(Number);
   const endDay = shift.endsNextDay ? day + 1 : day;
-  return new Date(Date.UTC(year, month - 1, endDay, shift.endHour + 3, 0, 0, 0));
+  return new Date(Date.UTC(year, month - 1, endDay, 3, shift.end, 0, 0));
 }
 
 export function bookingWindow(now = new Date()): { minDate: string; maxDate: string; today: string } {
   const today = formatArgentinaDate(now);
-  const minDate = argentinaMinutes(now) < 5 * 60 ? addCalendarDays(today, -1) : today;
+  // Durante la madrugada sigue abierta la Trasnoche del día anterior.
+  const lastOvernightEnd = Math.max(...VISITOR_SHIFTS.filter((s) => s.endsNextDay).map((s) => s.end), 0);
+  const minDate = argentinaMinutes(now) < lastOvernightEnd ? addCalendarDays(today, -1) : today;
   return {
     today,
     minDate,

@@ -26,9 +26,9 @@ interface AvailabilityResponse {
 
 const SHIFT_LABEL: Record<VisitorShiftId, string> = {
   manana: 'pages.reservations.shifts.manana',
-  siesta: 'pages.reservations.shifts.siesta',
   tarde: 'pages.reservations.shifts.tarde',
   noche: 'pages.reservations.shifts.noche',
+  trasnoche: 'pages.reservations.shifts.trasnoche',
 };
 
 const ERROR_LABEL: Record<string, string> = {

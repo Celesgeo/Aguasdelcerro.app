@@ -3,14 +3,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import AdminShell from '@/components/admin/AdminShell';
 import type { Reservation, ShiftAvailability } from '@/lib/reservations';
-import type { VisitorShiftId } from '@/lib/visitor-shifts';
+import { shiftLabel, type VisitorShiftId } from '@/lib/visitor-shifts';
 
-const SHIFT_NAME: Record<VisitorShiftId, string> = {
-  manana: 'Mañana · 8 a 12 hs',
-  siesta: 'Siesta · 12 a 16 hs',
-  tarde: 'Tarde · 16 a 21 hs',
-  noche: 'Noche · 21 a 05 hs',
-};
+const SHIFT_NAME = (id: VisitorShiftId) => shiftLabel(id);
 
 const ARS = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 
@@ -84,7 +79,7 @@ export default function AdminShifts() {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 mb-10">
         {shifts.map((shift) => (
           <article key={shift.id} className="border border-brand-brown/15 bg-white p-5">
-            <p className="text-sm text-brand-brown font-body">{SHIFT_NAME[shift.id]}</p>
+            <p className="text-sm text-brand-brown font-body">{SHIFT_NAME(shift.id)}</p>
             <p className="mt-3 font-display text-3xl text-brand-brown">
               {shift.sold}
               <span className="text-lg text-brand-dark/40"> / {shift.capacity}</span>
@@ -115,7 +110,7 @@ export default function AdminShifts() {
                   {ARS.format(reservation.total)}
                 </p>
                 <p className="mt-1 text-brand-dark/60">
-                  {SHIFT_NAME[reservation.shiftId]} · {reservation.email}
+                  {SHIFT_NAME(reservation.shiftId)} · {reservation.email}
                   {reservation.phone ? ` · ${reservation.phone}` : ''}
                 </p>
                 <p className="mt-1 text-xs tracking-[0.14em] uppercase">
