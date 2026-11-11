@@ -241,8 +241,7 @@ export const dictionaries = {
         emailLabel: 'Correo electrónico',
         emailHint: 'Allí recibirá la confirmación con su código de reserva.',
         phoneLabel: 'Teléfono (opcional)',
-        termsLabel:
-          'Acepto las condiciones de ingreso: dentro del horario del turno, menores a partir de los 10 años con supervisión de un adulto responsable y modificaciones hasta 48 horas antes.',
+        termsLabel: 'He leído y acepto las condiciones de la reserva, detalladas en el',
         totalLabel: 'Total',
         payCta: 'Continuar con Mercado Pago',
         paying: 'Preparando el pago…',
@@ -251,9 +250,9 @@ export const dictionaries = {
         step1: 'El pago se realiza en Mercado Pago, con tarjeta o dinero en cuenta.',
         step2: 'Recibirá por correo la confirmación con su código de reserva, fecha, turno y cantidad de personas.',
         step3: 'El día de su visita, presente ese correo o indique su código en el ingreso.',
-        policyTitle: 'Cambios y clima',
+        policyTitle: 'Cambios, devoluciones y clima',
         policy:
-          'La fecha o el turno pueden modificarse desde “Mi reserva” hasta 48 horas antes. El parque funciona con cualquier clima.',
+          'La fecha o el turno pueden modificarse desde “Mi reserva” hasta 48 horas antes. La devolución total puede solicitarse hasta 48 horas antes, o dentro de los 10 días de la compra con al menos 24 horas de anticipación. El parque funciona con cualquier clima.',
         manageLink: '¿Ya tiene una reserva? Consúltela o modifíquela aquí',
         soldOut: 'Turno completo',
         ended: 'Turno finalizado',
@@ -262,7 +261,7 @@ export const dictionaries = {
         invalid: 'Revise la fecha, el turno y la cantidad de personas.',
         nameError: 'Ingrese su nombre y apellido.',
         emailError: 'Revise su correo electrónico.',
-        termsError: 'Para continuar, es necesario aceptar las condiciones de ingreso.',
+        termsError: 'Para continuar, es necesario aceptar las condiciones de la reserva.',
         rateLimit: 'Aguarde un momento e intente nuevamente.',
         unavailable: 'No fue posible preparar el pago. Intente nuevamente en unos minutos.',
         shifts: {
@@ -578,8 +577,7 @@ export const dictionaries = {
         emailLabel: 'Email',
         emailHint: 'Your confirmation and reservation code will be sent here.',
         phoneLabel: 'Phone (optional)',
-        termsLabel:
-          'I accept the entry conditions: within shift hours, guests aged 10 and over supervised by a responsible adult, and changes up to 48 hours in advance.',
+        termsLabel: 'I have read and accept the booking conditions set out in the',
         totalLabel: 'Total',
         payCta: 'Continue with Mercado Pago',
         paying: 'Preparing payment…',
@@ -588,8 +586,9 @@ export const dictionaries = {
         step1: 'Payment is made in Mercado Pago, by card or account balance.',
         step2: 'You will receive an email with your reservation code, date, shift and number of guests.',
         step3: 'On the day of your visit, present that email or your code at the entrance.',
-        policyTitle: 'Changes and weather',
-        policy: 'The date or shift can be changed from “My reservation” up to 48 hours in advance. The park is open in any weather.',
+        policyTitle: 'Changes, refunds and weather',
+        policy:
+          'The date or shift can be changed from “My reservation” up to 48 hours in advance. A full refund may be requested up to 48 hours in advance, or within 10 days of purchase with at least 24 hours’ notice. The park is open in any weather.',
         manageLink: 'Already have a reservation? View or change it here',
         soldOut: 'Shift full',
         ended: 'Shift finished',
@@ -598,7 +597,7 @@ export const dictionaries = {
         invalid: 'Please check the date, shift and number of guests.',
         nameError: 'Please enter your full name.',
         emailError: 'Please check your email address.',
-        termsError: 'To continue, please accept the entry conditions.',
+        termsError: 'To continue, please accept the booking conditions.',
         rateLimit: 'Please wait a moment and try again.',
         unavailable: 'The payment could not be prepared. Please try again in a few minutes.',
         shifts: {

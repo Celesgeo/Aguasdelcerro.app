@@ -18,7 +18,7 @@ import {
 /** Minutos que se guarda el lugar mientras la persona paga en Mercado Pago. */
 export const PAYMENT_HOLD_MINUTES = 30;
 
-export type ReservationStatus = 'pending' | 'paid' | 'cancelled';
+export type ReservationStatus = 'pending' | 'paid' | 'cancelled' | 'refunded';
 
 export interface Reservation {
   id: string;
@@ -38,6 +38,8 @@ export interface Reservation {
   paidAt: string | null;
   confirmationSentAt: string | null;
   rescheduleCount: number;
+  refundedAt: string | null;
+  mpRefundId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -69,6 +71,8 @@ interface ReservationRow {
   paid_at: Date | null;
   confirmation_sent_at: Date | null;
   reschedule_count: number;
+  refunded_at: Date | null;
+  mp_refund_id: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -96,6 +100,8 @@ function toReservation(row: ReservationRow): Reservation {
     paidAt: iso(row.paid_at),
     confirmationSentAt: iso(row.confirmation_sent_at),
     rescheduleCount: row.reschedule_count,
+    refundedAt: iso(row.refunded_at),
+    mpRefundId: row.mp_refund_id,
     createdAt: new Date(row.created_at).toISOString(),
     updatedAt: new Date(row.updated_at).toISOString(),
   };
@@ -135,7 +141,7 @@ export async function getShiftAvailability(date: string, now = new Date()): Prom
 }
 
 export class ReservationError extends Error {
-  code: 'invalid' | 'ended' | 'sold_out' | 'insufficient' | 'not_found' | 'too_late' | 'not_paid' | 'same_slot';
+  code: 'invalid' | 'ended' | 'sold_out' | 'insufficient' | 'not_found' | 'too_late' | 'not_paid' | 'same_slot' | 'not_refundable';
 
   constructor(code: ReservationError['code']) {
     super(code);
@@ -263,7 +269,8 @@ export async function markReservationPaid(
     );
     const row = rows[0];
     if (!row) return null;
-    if (row.status === 'paid') return { reservation: toReservation(row), newlyPaid: false };
+    // Ya pagada, o devuelta: un aviso tardío de "aprobado" no la vuelve a activar.
+    if (row.status === 'paid' || row.status === 'refunded') return { reservation: toReservation(row), newlyPaid: false };
 
     const updated = await client.query<ReservationRow>(
       `UPDATE reservations
@@ -365,4 +372,64 @@ export async function rescheduleReservation(input: {
     if (!rows[0]) throw new ReservationError('not_paid');
     return toReservation(rows[0]);
   });
+}
+
+/* ------------------------------------------------------------------ */
+/* Devoluciones                                                        */
+/* ------------------------------------------------------------------ */
+
+/** Horas de anticipación para pedir la devolución total por política del parque. */
+export const REFUND_POLICY_MIN_HOURS = 48;
+/** Derecho de arrepentimiento (Ley 24.240 art. 34; Disp. 954/2025 art. 2): días corridos desde la compra. */
+export const WITHDRAWAL_DAYS = 10;
+/** ...y aviso mínimo antes del turno. */
+export const WITHDRAWAL_MIN_HOURS = 24;
+
+export type RefundGround = 'policy' | 'withdrawal';
+
+/**
+ * ¿Corresponde la devolución total automática?
+ * - Por política: hasta 48 h antes del turno.
+ * - Por arrepentimiento: dentro de los 10 días corridos desde el pago y con al menos 24 h de anticipación al turno.
+ */
+export function refundEligibility(reservation: Reservation, now = new Date()): RefundGround | null {
+  if (reservation.status !== 'paid' || !reservation.mpPaymentId) return null;
+  const hoursToStart = (shiftStartInstant(reservation.date, reservation.shiftId).getTime() - now.getTime()) / 3_600_000;
+  if (hoursToStart >= REFUND_POLICY_MIN_HOURS) return 'policy';
+  const paidAt = reservation.paidAt ? new Date(reservation.paidAt).getTime() : null;
+  const daysSincePaid = paidAt === null ? Infinity : (now.getTime() - paidAt) / 86_400_000;
+  if (daysSincePaid <= WITHDRAWAL_DAYS && hoursToStart >= WITHDRAWAL_MIN_HOURS) return 'withdrawal';
+  return null;
+}
+
+export async function findReservationById(id: string): Promise<Reservation | null> {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+  const rows = await query<ReservationRow>('SELECT * FROM reservations WHERE id = $1', [id]);
+  return rows[0] ? toReservation(rows[0]) : null;
+}
+
+/** Marca la reserva como devuelta y libera los lugares. Devuelve null si ya estaba devuelta. */
+export async function markReservationRefunded(
+  id: string,
+  refundId: string | null,
+  origin: string,
+): Promise<Reservation | null> {
+  const rows = await query<ReservationRow>(
+    `UPDATE reservations
+     SET status = 'refunded', refunded_at = now(), mp_refund_id = COALESCE($2, mp_refund_id),
+         refund_origin = $3, hold_expires_at = NULL, updated_at = now()
+     WHERE id = $1 AND status <> 'refunded'
+     RETURNING *`,
+    [id, refundId, origin],
+  );
+  return rows[0] ? toReservation(rows[0]) : null;
+}
+
+/** Reservas devueltas de un día (para el panel). */
+export async function listRefundedForDate(date: string): Promise<Reservation[]> {
+  const rows = await query<ReservationRow>(
+    `SELECT * FROM reservations WHERE visit_date = $1 AND status = 'refunded' ORDER BY refunded_at DESC`,
+    [date],
+  );
+  return rows.map(toReservation);
 }

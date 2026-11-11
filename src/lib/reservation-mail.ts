@@ -105,7 +105,9 @@ ${kind === 'confirmed' ? row('Total pagado', formatARS(reservation.total)) : ''}
 <p style="margin:0 0 6px"><strong>Incluye:</strong> acceso al predio y a las piletas, sanitarios, vestuarios y estacionamiento.</p>
 <p style="margin:0 0 18px"><strong>Servicios adicionales:</strong> propuesta gastronómica y alquiler de batas.</p>
 <p style="margin:0 0 8px">Puede modificar la fecha o el turno hasta el <strong>${escapeHtml(formatDeadline(reservation))} hs</strong>, 48 horas antes de su turno. El parque funciona con cualquier clima.</p>
-<p style="margin:0 0 4px"><a href="${url}" style="display:inline-block;background:#4a3524;color:#ffffff;text-decoration:none;padding:12px 22px;font-size:13px;letter-spacing:1px;text-transform:uppercase">Consultar o modificar mi reserva</a></p>`,
+<p style="margin:0 0 8px">Puede solicitar la devolución total hasta 48 horas antes del turno, o ejercer su derecho de arrepentimiento dentro de los 10 días corridos desde esta confirmación con al menos 24 horas de anticipación, desde el <a href="${getSiteUrl()}/arrepentimiento?code=${encodeURIComponent(reservation.code)}" style="color:#4a3524">Botón de arrepentimiento</a>.</p>
+<p style="margin:0 0 4px"><a href="${url}" style="display:inline-block;background:#4a3524;color:#ffffff;text-decoration:none;padding:12px 22px;font-size:13px;letter-spacing:1px;text-transform:uppercase">Consultar o modificar mi reserva</a></p>
+<p style="margin:16px 0 0;font-size:12px;color:#8a7a5c">Condiciones de la contratación: <a href="${getSiteUrl()}/contratos-de-adhesion" style="color:#8a7a5c">Contrato de adhesión - Ley N° 24.240</a> · <a href="${getSiteUrl()}/privacidad" style="color:#8a7a5c">Política de privacidad</a></p>`,
   );
 
   const text = [
@@ -129,6 +131,8 @@ ${kind === 'confirmed' ? row('Total pagado', formatARS(reservation.total)) : ''}
     '',
     `Puede modificar la fecha o el turno hasta el ${formatDeadline(reservation)} hs, 48 horas antes de su turno: ${url}`,
     'El parque funciona con cualquier clima.',
+    `Devolución total hasta 48 horas antes, o derecho de arrepentimiento dentro de los 10 días corridos desde esta confirmación con al menos 24 horas de anticipación: ${getSiteUrl()}/arrepentimiento?code=${encodeURIComponent(reservation.code)}`,
+    `Condiciones de la contratación: ${getSiteUrl()}/contratos-de-adhesion`,
     '',
     `Cómo llegar: ${SITE.mapsUrl}`,
     `WhatsApp: +${SITE.whatsappPrimary}`,
@@ -197,4 +201,141 @@ export async function sendReservationRescheduledEmails(
       if (result.status === 'rejected') console.error(`[reservas] correo de cambio ${reservation.code}:`, result.reason);
     });
   });
+}
+
+/* ------------------------------------------------------------------ */
+/* Devoluciones y solicitudes de arrepentimiento / baja                */
+/* ------------------------------------------------------------------ */
+
+/** Avisa al cliente (y copia interna) que se realizó la devolución total. */
+export async function sendRefundEmails(reservation: Reservation, reason: string): Promise<void> {
+  const date = formatVisitDate(reservation.date);
+  const shift = formatShift(reservation.shiftId);
+  const title = 'Devolución realizada';
+  const html = layout(
+    title,
+    `<p style="margin:0 0 16px">Estimado/a ${escapeHtml(reservation.name)}, realizamos la devolución total de su reserva. La reserva quedó cancelada.</p>
+<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-top:1px solid #efe6d4;border-bottom:1px solid #efe6d4;margin-bottom:18px">
+${row('Código de reserva', reservation.code)}
+${row('Fecha', date)}
+${row('Turno', shift)}
+${row('Personas', people(reservation.quantity))}
+${row('Importe devuelto', formatARS(reservation.total))}
+</table>
+<p style="margin:0 0 8px">El reintegro se acredita en el mismo medio de pago utilizado. Con tarjeta, el banco puede demorar entre 2 y 35 días en reflejarlo en el resumen; con dinero en cuenta de Mercado Pago, se acredita en el momento.</p>
+<p style="margin:0;font-size:12px;color:#8a7a5c">Motivo: ${escapeHtml(reason)}</p>`,
+  );
+  const text = [
+    `${title} · ${SITE.name}`,
+    '',
+    `Estimado/a ${reservation.name}, realizamos la devolución total de su reserva. La reserva quedó cancelada.`,
+    '',
+    `Código de reserva: ${reservation.code}`,
+    `Fecha: ${date}`,
+    `Turno: ${shift}`,
+    `Personas: ${people(reservation.quantity)}`,
+    `Importe devuelto: ${formatARS(reservation.total)}`,
+    '',
+    'El reintegro se acredita en el mismo medio de pago utilizado. Con tarjeta, el banco puede demorar entre 2 y 35 días en reflejarlo; con dinero en cuenta de Mercado Pago, se acredita en el momento.',
+    `Motivo: ${reason}`,
+  ].join('\n');
+
+  const staffLines: Array<[string, string]> = [
+    ['Código', reservation.code],
+    ['Nombre', reservation.name],
+    ['Correo', reservation.email],
+    ['Fecha', date],
+    ['Turno', shift],
+    ['Personas', people(reservation.quantity)],
+    ['Importe devuelto', formatARS(reservation.total)],
+    ['Pago Mercado Pago', reservation.mpPaymentId ?? '—'],
+    ['Devolución Mercado Pago', reservation.mpRefundId ?? '—'],
+    ['Motivo', reason],
+  ];
+
+  await Promise.allSettled([
+    sendTransactionalEmail({ to: reservation.email, subject: `${title} · ${reservation.code}`, html, text, replyTo: SITE.email }),
+    sendTransactionalEmail({
+      to: getReservationsNotifyEmail(),
+      subject: `Devolución realizada: ${reservation.code} · ${formatARS(reservation.total)}`,
+      html: layout('Devolución realizada', `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%">${staffLines.map(([l, v]) => row(l, v)).join('')}</table>`),
+      text: ['Devolución realizada', '', ...staffLines.map(([l, v]) => `${l}: ${v}`)].join('\n'),
+      replyTo: reservation.email,
+    }),
+  ]).then((results) =>
+    results.forEach((result) => {
+      if (result.status === 'rejected') console.error(`[reservas] correo de devolución ${reservation.code}:`, result.reason);
+    }),
+  );
+}
+
+export interface CancellationRequestMail {
+  trackingCode: string;
+  kind: 'arrepentimiento' | 'baja';
+  name: string;
+  email: string;
+  phone: string | null;
+  reservationCode: string | null;
+  reason: string | null;
+  /** Qué pasó con la solicitud, en una frase para el cliente */
+  customerOutcome: string;
+  /** Qué tiene que hacer el equipo, en una frase */
+  staffOutcome: string;
+  needsAction: boolean;
+}
+
+/**
+ * Constancia de la solicitud con su código de identificación (Disp. 954/2025, art. 5:
+ * dentro de las 24 h y por el mismo medio) y aviso interno.
+ */
+export async function sendCancellationRequestEmails(request: CancellationRequestMail): Promise<void> {
+  const label = request.kind === 'baja' ? 'Botón de baja de servicio' : 'Botón de arrepentimiento';
+  const title = 'Recibimos su solicitud';
+  const lines: Array<[string, string]> = [
+    ['Código de trámite', request.trackingCode],
+    ['Tipo de solicitud', label],
+    ['Reserva', request.reservationCode ?? '—'],
+    ['Nombre', request.name],
+  ];
+  const html = layout(
+    title,
+    `<p style="margin:0 0 16px">Estimado/a ${escapeHtml(request.name)}, registramos su solicitud. Conserve este código para cualquier consulta.</p>
+<p style="margin:0 0 6px;font-size:13px;color:#8a7a5c">Código de trámite</p>
+<p style="margin:0 0 18px;font-size:26px;letter-spacing:2px;font-family:'Courier New',monospace;color:#4a3524">${escapeHtml(request.trackingCode)}</p>
+<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-top:1px solid #efe6d4;border-bottom:1px solid #efe6d4;margin-bottom:18px">
+${lines.map(([l, v]) => row(l, v)).join('')}
+</table>
+<p style="margin:0">${escapeHtml(request.customerOutcome)}</p>`,
+  );
+  const text = [
+    `${title} · ${SITE.name}`,
+    '',
+    `Estimado/a ${request.name}, registramos su solicitud. Conserve este código para cualquier consulta.`,
+    '',
+    ...lines.map(([l, v]) => `${l}: ${v}`),
+    '',
+    request.customerOutcome,
+  ].join('\n');
+
+  const staffLines: Array<[string, string]> = [
+    ...lines,
+    ['Correo', request.email],
+    ['Teléfono', request.phone ?? '—'],
+    ['Motivo', request.reason ?? '—'],
+    ['Resultado', request.staffOutcome],
+  ];
+  await Promise.allSettled([
+    sendTransactionalEmail({ to: request.email, subject: `${title} · ${request.trackingCode}`, html, text, replyTo: SITE.email }),
+    sendTransactionalEmail({
+      to: getReservationsNotifyEmail(),
+      subject: `${request.needsAction ? 'ACCIÓN REQUERIDA · ' : ''}${label}: ${request.trackingCode}`,
+      html: layout(label, `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%">${staffLines.map(([l, v]) => row(l, v)).join('')}</table>`),
+      text: [label, '', ...staffLines.map(([l, v]) => `${l}: ${v}`)].join('\n'),
+      replyTo: request.email,
+    }),
+  ]).then((results) =>
+    results.forEach((result) => {
+      if (result.status === 'rejected') console.error(`[arrepentimiento] correo ${request.trackingCode}:`, result.reason);
+    }),
+  );
 }

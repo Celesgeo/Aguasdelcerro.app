@@ -167,3 +167,33 @@ export function verifyWebhookSignature(input: {
   const b = Buffer.from(v1, 'hex');
   return a.length === b.length && timingSafeEqual(a, b);
 }
+
+export class RefundError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
+/**
+ * Devolución total de un pago. La clave de idempotencia es fija por reserva:
+ * si se pide dos veces (doble clic, reintento), Mercado Pago devuelve una sola vez.
+ * Requiere saldo disponible en la cuenta de Mercado Pago.
+ */
+export async function refundPaymentFully(paymentId: string, idempotencyKey: string): Promise<{ refundId: string }> {
+  if (!/^\d{1,30}$/.test(paymentId)) throw new RefundError('Número de pago inválido', 400);
+  const response = await mpFetch(`/v1/payments/${paymentId}/refunds`, {
+    method: 'POST',
+    headers: { 'X-Idempotency-Key': idempotencyKey },
+    body: JSON.stringify({}),
+  });
+  const data = (await response.json().catch(() => null)) as
+    | { id?: number | string; status?: string; message?: string; cause?: Array<{ description?: string }> }
+    | null;
+  if (!response.ok || !data?.id) {
+    const detail = data?.cause?.[0]?.description || data?.message || 'sin detalle';
+    throw new RefundError(`Mercado Pago no pudo hacer la devolución (${response.status}): ${detail}`, response.status);
+  }
+  return { refundId: String(data.id) };
+}

@@ -13,6 +13,9 @@ export const PUBLIC_ROUTES = [
   { path: '/reservas', priority: 0.8, changeFrequency: 'monthly' as const },
   { path: '/contacto', priority: 0.7, changeFrequency: 'yearly' as const },
   { path: '/trabaja-con-nosotros', priority: 0.6, changeFrequency: 'monthly' as const },
+  { path: '/contratos-de-adhesion', priority: 0.3, changeFrequency: 'yearly' as const },
+  { path: '/privacidad', priority: 0.3, changeFrequency: 'yearly' as const },
+  { path: '/arrepentimiento', priority: 0.3, changeFrequency: 'yearly' as const },
 ] as const;
 
 type PageSeoOptions = {

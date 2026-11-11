@@ -67,6 +67,27 @@ CREATE TABLE IF NOT EXISTS reservations (
 CREATE INDEX IF NOT EXISTS reservations_slot_idx ON reservations (visit_date, shift_id, status);
 CREATE INDEX IF NOT EXISTS reservations_email_idx ON reservations (lower(customer_email));
 
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS refunded_at TIMESTAMPTZ;
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS mp_refund_id TEXT;
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS refund_origin TEXT;
+
+-- Solicitudes del "Botón de arrepentimiento" y "Botón de baja de servicio" (Disp. 954/2025).
+CREATE TABLE IF NOT EXISTS cancellation_requests (
+  id UUID PRIMARY KEY,
+  tracking_code TEXT NOT NULL UNIQUE,
+  kind TEXT NOT NULL,
+  reservation_code TEXT,
+  customer_name TEXT NOT NULL,
+  customer_email TEXT NOT NULL,
+  customer_phone TEXT,
+  reason TEXT,
+  outcome TEXT NOT NULL,
+  outcome_detail TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  resolved_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS cancellation_requests_created_idx ON cancellation_requests (created_at DESC);
+
 CREATE TABLE IF NOT EXISTS members (
   id UUID PRIMARY KEY,
   access_number TEXT NOT NULL,

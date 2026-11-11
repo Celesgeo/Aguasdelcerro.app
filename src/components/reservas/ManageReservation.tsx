@@ -207,6 +207,15 @@ export default function ManageReservation({ initialCode }: { initialCode: string
               : t('pages.myReservation.tooLateInfo')}
           </p>
 
+          <p className="mt-3 text-sm">
+            <a
+              href={`/arrepentimiento?code=${encodeURIComponent(reservation.code)}`}
+              className="text-brand-brown underline underline-offset-4 hover:text-brand-gold"
+            >
+              {locale === 'en' ? 'Request a refund or cancel this reservation' : 'Solicitar la devolución o la baja de esta reserva'}
+            </a>
+          </p>
+
           {reservation.canReschedule ? (
             <div className="mt-8 space-y-5 border-t border-brand-brown/10 pt-6">
               <p className="font-display text-2xl text-brand-brown">

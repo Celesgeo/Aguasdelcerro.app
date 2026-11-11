@@ -14,6 +14,40 @@ export const SITE = {
   coordinates: { lat: -29.345978, lng: -66.864471 },
 } as const;
 
+/**
+ * Datos del proveedor exigidos por la normativa de defensa del consumidor
+ * (Res. GMC 37/19 – Res. 270/2020; Disp. 954/2025, art. 6).
+ * Completar con los datos reales antes de publicar.
+ */
+export const LEGAL = {
+  /** Razón social o nombre del titular, tal como figura en ARCA */
+  businessName: 'COMPLETAR_RAZON_SOCIAL',
+  /** CUIT con guiones, p. ej. 30-12345678-9 */
+  cuit: 'COMPLETAR_CUIT',
+  /** Domicilio legal / comercial */
+  address: 'COMPLETAR_DOMICILIO',
+  /** Correo de atención al cliente */
+  supportEmail: 'contacto@aguasdelcerro.net',
+  /** Días y horario de atención (mínimo 8 h por día hábil, de lunes a viernes) */
+  supportHours: 'COMPLETAR_HORARIO_ATENCION',
+  /**
+   * Precio sin impuestos nacionales (Res. 4/2025, art. 2 c).
+   * Responsable Inscripto: precio final / 1,21. Monotributista: igual al precio final.
+   */
+  ticketPriceWithoutNationalTaxes: null as number | null,
+  /** Enlace del Formulario 960 "Data Fiscal" de ARCA (RG 1415). Vacío = no se muestra. */
+  dataFiscalUrl: '',
+  /** Fecha desde la que rigen los términos publicados */
+  termsEffectiveDate: '2026-11-15',
+} as const;
+
+/** ¿Quedó algún dato legal sin completar? (se usa para avisar en el panel y en desarrollo) */
+export function legalDataMissing(): string[] {
+  return Object.entries(LEGAL)
+    .filter(([, value]) => typeof value === 'string' && value.startsWith('COMPLETAR_'))
+    .map(([key]) => key);
+}
+
 export const NAV_LINKS = [
   { href: '/', label: 'Inicio' },
   { href: '/experiencias', label: 'Experiencias' },

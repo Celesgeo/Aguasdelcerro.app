@@ -1,9 +1,10 @@
-import { getPayment } from '@/lib/mercadopago';
-import { sendReservationConfirmedEmails } from '@/lib/reservation-mail';
+import { getPayment, refundPaymentFully } from '@/lib/mercadopago';
+import { sendRefundEmails, sendReservationConfirmedEmails } from '@/lib/reservation-mail';
 import {
   findReservationByCode,
   markConfirmationSent,
   markReservationPaid,
+  markReservationRefunded,
   releasePendingReservation,
   type Reservation,
 } from '@/lib/reservations';
@@ -51,10 +52,34 @@ export async function processPayment(paymentId: string, expectedCode?: string): 
     return { kind: 'paid', reservation: result.reservation };
   }
 
+  // Devolución hecha directamente desde Mercado Pago (o contracargo) sobre una reserva ya pagada.
+  if ((payment.status === 'refunded' || payment.status === 'charged_back') && reservation.status === 'paid') {
+    const refunded = await markReservationRefunded(reservation.id, null, `mercadopago:${payment.status}`);
+    if (refunded) await sendRefundEmails(refunded, 'Devolución registrada en Mercado Pago');
+    return { kind: 'rejected', reservation: refunded ?? reservation };
+  }
+
   if (['rejected', 'cancelled', 'refunded', 'charged_back'].includes(payment.status)) {
     await releasePendingReservation(reservation.code, payment.id);
     return { kind: 'rejected', reservation: await findReservationByCode(reservation.code) };
   }
 
   return { kind: 'pending', reservation };
+}
+
+/**
+ * Devolución total: pide el reintegro a Mercado Pago, marca la reserva como devuelta,
+ * libera los lugares y avisa al cliente. Si Mercado Pago rechaza (p. ej. sin saldo),
+ * no cambia nada y lanza el error para mostrarlo.
+ */
+export async function refundReservation(reservation: Reservation, origin: string, reason: string): Promise<Reservation> {
+  if (reservation.status === 'refunded') return reservation;
+  if (reservation.status !== 'paid' || !reservation.mpPaymentId) {
+    throw new Error('La reserva no tiene un pago aprobado para devolver');
+  }
+  const { refundId } = await refundPaymentFully(reservation.mpPaymentId, `refund-${reservation.id}`);
+  const updated = await markReservationRefunded(reservation.id, refundId, origin);
+  // Si el aviso de Mercado Pago llegó antes y ya la marcó, el correo ya salió por ese camino.
+  if (updated) await sendRefundEmails(updated, reason);
+  return updated ?? { ...reservation, status: 'refunded', mpRefundId: refundId };
 }

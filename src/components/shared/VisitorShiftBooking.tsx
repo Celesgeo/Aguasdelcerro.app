@@ -7,6 +7,7 @@ import Tx from '@/components/i18n/Tx';
 import Button from '@/components/shared/Button';
 import ScrollReveal from '@/components/shared/ScrollReveal';
 import { useT } from '@/components/i18n/LanguageProvider';
+import { LEGAL } from '@/lib/constants';
 import { formatARS, TICKET_PRICE_ARS } from '@/lib/memberships';
 import { VISITOR_SHIFT_MAX_PER_PURCHASE, VISITOR_SHIFTS, type VisitorShiftId, type VisitorShiftStatus } from '@/lib/visitor-shifts';
 
@@ -171,6 +172,12 @@ export default function VisitorShiftBooking() {
           <Tx k="pages.reservations.ticketTitle" />
         </h2>
         <p className="mt-4 font-display text-5xl text-brand-brown">{formatARS(TICKET_PRICE_ARS)}</p>
+        <p className="mt-1 text-xs font-body text-brand-dark/55">
+          Precio final por persona, impuestos incluidos.
+          {LEGAL.ticketPriceWithoutNationalTaxes !== null
+            ? ` Precio sin impuestos nacionales: ${formatARS(LEGAL.ticketPriceWithoutNationalTaxes)}.`
+            : ''}
+        </p>
         <p className="mt-4 text-sm leading-relaxed font-body text-brand-dark/60">
           <Tx k="pages.reservations.ticketDetail" />
         </p>
@@ -351,9 +358,21 @@ export default function VisitorShiftBooking() {
                 className="mt-1 h-4 w-4 shrink-0 accent-brand-gold"
               />
               <span>
-                <Tx k="pages.reservations.termsLabel" />
+                <Tx k="pages.reservations.termsLabel" />{' '}
+                <Link href="/contratos-de-adhesion" target="_blank" className="underline underline-offset-2 text-brand-brown">
+                  Contrato de adhesión
+                </Link>
               </span>
             </label>
+            <p className="text-xs leading-relaxed font-body text-brand-dark/55">
+              Sus datos se utilizan únicamente para gestionar la reserva, enviarle la confirmación y atender cambios o
+              devoluciones. El nombre y el correo son obligatorios; sin ellos no es posible confirmar la reserva. Puede
+              ejercer sus derechos de acceso, rectificación y supresión según la{' '}
+              <Link href="/privacidad" target="_blank" className="underline underline-offset-2">
+                Política de privacidad
+              </Link>
+              .
+            </p>
           </fieldset>
 
           {loading ? null : shiftOpen ? (
@@ -403,9 +422,12 @@ export default function VisitorShiftBooking() {
             </ol>
           </div>
 
-          <p className="text-sm font-body">
+          <p className="flex flex-wrap gap-x-6 gap-y-2 text-sm font-body">
             <Link href="/mi-reserva" className="text-brand-brown underline underline-offset-4 hover:text-brand-gold">
               <Tx k="pages.reservations.manageLink" />
+            </Link>
+            <Link href="/arrepentimiento" className="text-brand-brown underline underline-offset-4 hover:text-brand-gold">
+              Botón de arrepentimiento
             </Link>
           </p>
         </div>
