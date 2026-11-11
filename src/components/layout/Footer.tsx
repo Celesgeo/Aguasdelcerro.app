@@ -108,9 +108,9 @@ export default function Footer() {
             </Link>
           </nav>
           <div className="max-w-3xl space-y-1 text-xs leading-relaxed text-brand-cream/55">
-            <p>
-              {LEGAL.businessName} · CUIT {LEGAL.cuit} · {LEGAL.address}
-            </p>
+            {[LEGAL.businessName, LEGAL.cuit ? `CUIT ${LEGAL.cuit}` : '', LEGAL.address].filter(Boolean).length > 0 ? (
+              <p>{[LEGAL.businessName, LEGAL.cuit ? `CUIT ${LEGAL.cuit}` : '', LEGAL.address].filter(Boolean).join(' · ')}</p>
+            ) : null}
             <p>
               Atención al cliente, consultas y reclamos:{' '}
               <a href={`mailto:${LEGAL.supportEmail}`} className="underline underline-offset-2 hover:text-brand-gold">
@@ -119,8 +119,8 @@ export default function Footer() {
               · WhatsApp{' '}
               <a href={WHATSAPP_PRIMARY_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-brand-gold">
                 +{SITE.whatsappPrimary}
-              </a>{' '}
-              · {LEGAL.supportHours}
+              </a>
+              {LEGAL.supportHours ? ` · ${LEGAL.supportHours}` : ''}
             </p>
           </div>
           {LEGAL.dataFiscalUrl ? (

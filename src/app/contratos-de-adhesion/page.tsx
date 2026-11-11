@@ -37,14 +37,14 @@ export default function ContratosDeAdhesionPage() {
           <li>
             Nombre comercial: <strong>{SITE.name}</strong>
           </li>
-          <li>Razón social: {LEGAL.businessName}</li>
-          <li>CUIT: {LEGAL.cuit}</li>
-          <li>Domicilio: {LEGAL.address}</li>
+          {LEGAL.businessName ? <li>Razón social: {LEGAL.businessName}</li> : null}
+          {LEGAL.cuit ? <li>CUIT: {LEGAL.cuit}</li> : null}
+          {LEGAL.address ? <li>Domicilio: {LEGAL.address}</li> : null}
           <li>
             Correo electrónico de atención: <a href={`mailto:${LEGAL.supportEmail}`}>{LEGAL.supportEmail}</a>
           </li>
           <li>WhatsApp: {whatsapp}</li>
-          <li>Horario de atención: {LEGAL.supportHours}</li>
+          {LEGAL.supportHours ? <li>Horario de atención: {LEGAL.supportHours}</li> : null}
         </ul>
       </LegalSection>
 
@@ -155,7 +155,7 @@ export default function ContratosDeAdhesionPage() {
       <LegalSection title="9. Atención al cliente y reclamos">
         <p>
           Consultas y reclamos: <a href={`mailto:${LEGAL.supportEmail}`}>{LEGAL.supportEmail}</a> o WhatsApp{' '}
-          {whatsapp}, {LEGAL.supportHours}. Sin perjuicio de ello, el consumidor puede presentar su reclamo ante la
+          {whatsapp}{LEGAL.supportHours ? `, ${LEGAL.supportHours}` : ''}. Sin perjuicio de ello, el consumidor puede presentar su reclamo ante la
           autoridad de aplicación de la Ley N° 24.240 de su jurisdicción.
         </p>
       </LegalSection>

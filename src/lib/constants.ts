@@ -21,15 +21,15 @@ export const SITE = {
  */
 export const LEGAL = {
   /** Razón social o nombre del titular, tal como figura en ARCA */
-  businessName: 'COMPLETAR_RAZON_SOCIAL',
+  businessName: '',
   /** CUIT con guiones, p. ej. 30-12345678-9 */
-  cuit: 'COMPLETAR_CUIT',
+  cuit: '',
   /** Domicilio legal / comercial */
-  address: 'COMPLETAR_DOMICILIO',
+  address: '',
   /** Correo de atención al cliente */
   supportEmail: 'contacto@aguasdelcerro.net',
   /** Días y horario de atención (mínimo 8 h por día hábil, de lunes a viernes) */
-  supportHours: 'COMPLETAR_HORARIO_ATENCION',
+  supportHours: '',
   /**
    * Precio sin impuestos nacionales (Res. 4/2025, art. 2 c).
    * Responsable Inscripto: precio final / 1,21. Monotributista: igual al precio final.
@@ -41,12 +41,14 @@ export const LEGAL = {
   termsEffectiveDate: '2026-11-15',
 } as const;
 
-/** ¿Quedó algún dato legal sin completar? (se usa para avisar en el panel y en desarrollo) */
+/** Datos del proveedor que todavía faltan cargar (vacíos: no se muestran en el sitio). */
 export function legalDataMissing(): string[] {
-  return Object.entries(LEGAL)
-    .filter(([, value]) => typeof value === 'string' && value.startsWith('COMPLETAR_'))
-    .map(([key]) => key);
+  const required: Array<keyof typeof LEGAL> = ['businessName', 'cuit', 'address', 'supportHours'];
+  return required.filter((key) => !LEGAL[key]);
 }
+
+/** Titular que se muestra: la razón social si existe, si no el nombre comercial. */
+export const PROVIDER_NAME: string = LEGAL.businessName || SITE.name;
 
 export const NAV_LINKS = [
   { href: '/', label: 'Inicio' },

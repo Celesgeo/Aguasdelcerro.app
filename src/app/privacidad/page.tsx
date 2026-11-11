@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import LegalPage, { LegalSection } from '@/components/legal/LegalPage';
-import { LEGAL, SITE } from '@/lib/constants';
+import { LEGAL, PROVIDER_NAME, SITE } from '@/lib/constants';
 
 export const metadata: Metadata = {
   title: 'Política de privacidad',
@@ -22,8 +22,15 @@ export default function PrivacidadPage() {
     >
       <LegalSection title="Responsable de los datos">
         <p>
-          El responsable de la base de datos es {LEGAL.businessName} (CUIT {LEGAL.cuit}), con domicilio en{' '}
-          {LEGAL.address}, quien opera el sitio de {SITE.name}. Contacto:{' '}
+          El responsable de la base de datos es{' '}
+          {[
+            PROVIDER_NAME,
+            LEGAL.cuit ? `CUIT ${LEGAL.cuit}` : '',
+            LEGAL.address ? `con domicilio en ${LEGAL.address}` : '',
+          ]
+            .filter(Boolean)
+            .join(', ')}
+          {PROVIDER_NAME !== SITE.name ? `, que opera el sitio de ${SITE.name}` : ''}. Contacto:{' '}
           <a href={`mailto:${LEGAL.supportEmail}`}>{LEGAL.supportEmail}</a>.
         </p>
       </LegalSection>
