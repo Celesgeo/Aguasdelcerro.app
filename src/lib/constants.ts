@@ -29,7 +29,7 @@ export const LEGAL = {
   /** Correo de atención al cliente */
   supportEmail: 'contacto@aguasdelcerro.net',
   /** Días y horario de atención (mínimo 8 h por día hábil, de lunes a viernes) */
-  supportHours: '',
+  supportHours: 'Lunes a viernes de 9 a 17 hs',
   /**
    * Precio sin impuestos nacionales (Res. 4/2025, art. 2 c).
    * Responsable Inscripto: precio final / 1,21. Monotributista: igual al precio final.
