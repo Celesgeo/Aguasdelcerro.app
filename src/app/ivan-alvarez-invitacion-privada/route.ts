@@ -386,7 +386,7 @@ footer p{margin:14px 0 0;font-size:11px;letter-spacing:.3em;text-transform:upper
     var msg = document.getElementById('mensaje').value.trim();
     var texto = 'Hola! Soy ' + nombre + '. ' +
       (asiste.value === 'si' ? 'Confirmo mi asistencia a la pre-inauguración privada de Aguas del Cerro el sábado 14/11.' : 'Lamentablemente no voy a poder asistir a la pre-inauguración del sábado 14/11.') +
-      (msg ? '\n\n' + msg : '');
+      (msg ? '\\n\\n' + msg : '');
     var t = encodeURIComponent(texto);
     var movil = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     document.getElementById('wa').href = 'https://api.whatsapp.com/send?phone=5493804910523&text=' + t;
