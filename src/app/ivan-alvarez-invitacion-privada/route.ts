@@ -147,6 +147,17 @@ footer{padding-block:56px 64px;text-align:center;border-top:1px solid var(--gold
 footer img{width:120px;height:auto;opacity:.9}
 footer p{margin:14px 0 0;font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--ink-soft)}
 
+.musica{position:fixed;right:max(14px,env(safe-area-inset-right,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:30;display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+.musica-btn{width:48px;height:48px;border-radius:50%;border:1px solid var(--gold);background:rgba(36,19,10,.82);color:var(--gold);display:flex;align-items:center;justify-content:center;cursor:pointer;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.musica-btn:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+.barras{display:flex;gap:3px;align-items:flex-end;height:16px}
+.barras i{display:block;width:3px;height:5px;background:var(--gold);border-radius:1px}
+.sonando .barras i{animation:barra 1s ease-in-out infinite}
+.sonando .barras i:nth-child(2){animation-delay:.2s}.sonando .barras i:nth-child(3){animation-delay:.4s}
+@keyframes barra{0%,100%{height:4px}50%{height:16px}}
+.reproductor{width:min(320px,calc(100vw - 28px));border:1px solid var(--gold-line);background:var(--bg);border-radius:12px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+.reproductor p{margin:0;padding:10px 12px 0;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold)}
+.reproductor-cuerpo{padding:8px}
 @keyframes subir{from{transform:translateY(14px)}to{transform:none}}
 .tapa.abierta ~ main .portada > *{animation:subir .9s ease both}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}html{scroll-behavior:auto}}
@@ -272,6 +283,16 @@ footer p{margin:14px 0 0;font-size:11px;letter-spacing:.3em;text-transform:upper
   </div>
 </footer>
 
+<div class="musica" id="musica" hidden>
+  <div class="reproductor" id="reproductor" hidden>
+    <p>Until I Found You · Stephen Sanchez</p>
+    <div class="reproductor-cuerpo"><div id="spotify"></div></div>
+  </div>
+  <button class="musica-btn" id="musica-btn" type="button" aria-label="Música de la invitación">
+    <span class="barras" aria-hidden="true"><i></i><i></i><i></i></span>
+  </button>
+</div>
+
 <script>
 (function(){
   // Nombre del invitado: ?para=María González  (o #maria-gonzalez)
@@ -289,11 +310,44 @@ footer p{margin:14px 0 0;font-size:11px;letter-spacing:.3em;text-transform:upper
     document.getElementById('nombre').value = nombre;
   }
 
+
+  // Música: Spotify (Stephen Sanchez · Until I Found You)
+  var controlador = null, sonando = false, pedirAlAbrir = false;
+  var musica = document.getElementById('musica');
+  var btn = document.getElementById('musica-btn');
+  var panel = document.getElementById('reproductor');
+  window.onSpotifyIframeApiReady = function(API){
+    API.createController(document.getElementById('spotify'), { uri: 'spotify:track:0T5iIrXA4p5GsubkhuBIKV', width: '100%', height: 80 }, function(c){
+      controlador = c;
+      c.addListener('playback_update', function(e){
+        sonando = !e.data.isPaused;
+        musica.classList.toggle('sonando', sonando);
+      });
+      if (pedirAlAbrir) intentarSonar();
+    });
+  };
+  function intentarSonar(){
+    if (!controlador) { pedirAlAbrir = true; return; }
+    try { controlador.play(); } catch (e) {}
+    setTimeout(function(){ if (!sonando) panel.hidden = false; }, 2500);
+  }
+  btn.addEventListener('click', function(){
+    if (!controlador) { panel.hidden = !panel.hidden; return; }
+    if (sonando) { controlador.togglePlay(); panel.hidden = true; }
+    else { controlador.togglePlay(); setTimeout(function(){ if (!sonando) panel.hidden = false; }, 1500); }
+  });
+  var sp = document.createElement('script');
+  sp.src = 'https://open.spotify.com/embed/iframe-api/v1';
+  sp.async = true;
+  document.head.appendChild(sp);
+
   var tapa = document.getElementById('tapa');
   document.body.classList.add('cerrado');
   document.getElementById('abrir').addEventListener('click', function(){
     var reducir = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     tapa.classList.add('amaneciendo');
+    musica.hidden = false;
+    intentarSonar();
     setTimeout(function(){
       tapa.classList.add('abierta');
       document.body.classList.remove('cerrado');
