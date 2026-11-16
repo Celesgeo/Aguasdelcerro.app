@@ -3,7 +3,7 @@ import { formatARS } from '@/lib/memberships';
 import { getReservationsNotifyEmail, sendTransactionalEmail } from '@/lib/mail';
 import { rescheduleDeadline, type Reservation } from '@/lib/reservations';
 import { getSiteUrl } from '@/lib/site-url';
-import { formatMinutes, getVisitorShift, shiftLabel } from '@/lib/visitor-shifts';
+import { getVisitorShift, shiftLabel } from '@/lib/visitor-shifts';
 
 const TZ = 'America/Argentina/Buenos_Aires';
 
@@ -29,7 +29,7 @@ export function formatVisitDate(isoDate: string): string {
   return `${weekday} ${pad(d)}/${pad(m)}/${y}`;
 }
 
-/** "Mañana · 07:30 a 12:30 hs" */
+/** "Mañana · 07:30 a 13:30 hs" */
 export function formatShift(shiftId: Reservation['shiftId']): string {
   return shiftLabel(shiftId);
 }
@@ -37,7 +37,7 @@ export function formatShift(shiftId: Reservation['shiftId']): string {
 /** Regla de ingreso del turno, en una frase. */
 export function entryRule(shiftId: Reservation['shiftId']): string {
   const shift = getVisitorShift(shiftId);
-  return `El ingreso se realiza dentro del horario de su turno, de ${formatMinutes(shift.start)} a ${formatMinutes(shift.end)} hs.`;
+  return `El ingreso se realiza dentro del horario de su turno: ${shift.hours}.`;
 }
 
 function formatDeadline(reservation: Reservation): string {

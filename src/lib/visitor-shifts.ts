@@ -9,10 +9,12 @@ const ARGENTINA_TZ = 'America/Argentina/Buenos_Aires';
  * `name` y `hours` son los textos que se muestran en el panel, los correos y Mercado Pago.
  */
 export const VISITOR_SHIFTS = [
-  { id: 'manana', name: 'Mañana', start: 7 * 60 + 30, end: 12 * 60 + 30, endsNextDay: false, hours: '07:30 a 12:30 hs' },
-  { id: 'tarde', name: 'Tarde', start: 12 * 60 + 30, end: 18 * 60 + 30, endsNextDay: false, hours: '12:30 a 18:30 hs' },
-  { id: 'noche', name: 'Noche', start: 18 * 60 + 30, end: 23 * 60 + 30, endsNextDay: false, hours: '18:30 a 23:30 hs' },
-  { id: 'trasnoche', name: 'Trasnoche', start: 23 * 60 + 30, end: 4 * 60 + 30, endsNextDay: true, hours: '23:30 a 04:30 hs' },
+  { id: 'manana', name: 'Mañana', start: 7 * 60 + 30, end: 13 * 60 + 30, startsNextDay: false, endsNextDay: false, hours: '07:30 a 13:30 hs' },
+  { id: 'tarde', name: 'Tarde', start: 13 * 60 + 30, end: 19 * 60 + 30, startsNextDay: false, endsNextDay: false, hours: '13:30 a 19:30 hs' },
+  { id: 'noche', name: 'Noche', start: 19 * 60 + 30, end: 1 * 60 + 30, startsNextDay: false, endsNextDay: true, hours: '19:30 a 01:30 hs' },
+  // La Madrugada es la continuación de la noche del día elegido: de 01:30 a 07:30 del día siguiente.
+  // Conserva el id "trasnoche" para que las reservas ya guardadas sigan siendo válidas.
+  { id: 'trasnoche', name: 'Madrugada', start: 1 * 60 + 30, end: 7 * 60 + 30, startsNextDay: true, endsNextDay: true, hours: '01:30 a 07:30 hs del día siguiente' },
 ] as const;
 
 export type VisitorShiftId = (typeof VISITOR_SHIFTS)[number]['id'];
@@ -23,7 +25,7 @@ export function isVisitorShiftId(value: string): value is VisitorShiftId {
   return VISITOR_SHIFTS.some((shift) => shift.id === value);
 }
 
-/** "Mañana · 07:30 a 12:30 hs" */
+/** "Mañana · 07:30 a 13:30 hs" */
 export function shiftLabel(id: VisitorShiftId): string {
   const shift = getVisitorShift(id);
   return `${shift.name} · ${shift.hours}`;
@@ -85,7 +87,8 @@ export function isRealCalendarDate(isoDate: string): boolean {
 export function shiftStartInstant(date: string, shiftId: VisitorShiftId): Date {
   const shift = getVisitorShift(shiftId);
   const [year, month, day] = date.split('-').map(Number);
-  return new Date(Date.UTC(year, month - 1, day, 3, shift.start, 0, 0));
+  const startDay = shift.startsNextDay ? day + 1 : day;
+  return new Date(Date.UTC(year, month - 1, startDay, 3, shift.start, 0, 0));
 }
 
 /** Horas de anticipación mínimas para que el cliente cambie día o turno. */
@@ -101,7 +104,7 @@ export function shiftEndInstant(date: string, shiftId: VisitorShiftId): Date {
 
 export function bookingWindow(now = new Date()): { minDate: string; maxDate: string; today: string } {
   const today = formatArgentinaDate(now);
-  // Durante la madrugada sigue abierta la Trasnoche del día anterior.
+  // Hasta las 07:30 sigue abierta la Madrugada (y antes la Noche) del día anterior.
   const lastOvernightEnd = Math.max(...VISITOR_SHIFTS.filter((s) => s.endsNextDay).map((s) => s.end), 0);
   const minDate = argentinaMinutes(now) < lastOvernightEnd ? addCalendarDays(today, -1) : today;
   return {

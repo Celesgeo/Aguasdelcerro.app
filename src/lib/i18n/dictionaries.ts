@@ -126,7 +126,7 @@ export const dictionaries = {
       },
       {
         q: '¿En qué horario puedo ingresar?',
-        a: 'Dentro del horario del turno elegido. Por ejemplo, para el turno Mañana, de 07:30 a 12:30 hs.',
+        a: 'Dentro del horario del turno elegido. Por ejemplo, para el turno Mañana, de 07:30 a 13:30 hs.',
       },
       {
         q: '¿Pueden asistir menores?',
@@ -230,7 +230,7 @@ export const dictionaries = {
         minorsTitle: 'Menores',
         minors: 'Abonan a partir de los 10 años y con supervisión de un adulto responsable.',
         entryTitle: 'Ingreso',
-        entry: 'El ingreso se realiza dentro del horario del turno elegido. Por ejemplo, para el turno Mañana, de 07:30 a 12:30 hs.',
+        entry: 'El ingreso se realiza dentro del horario del turno elegido. Por ejemplo, para el turno Mañana, de 07:30 a 13:30 hs.',
         sectorNote: 'Por el momento se encuentra habilitado un sector de piletas; el resto se incorporará próximamente.',
         dateLabel: 'Fecha',
         shiftLabel: 'Turno',
@@ -265,10 +265,10 @@ export const dictionaries = {
         rateLimit: 'Aguarde un momento e intente nuevamente.',
         unavailable: 'No fue posible preparar el pago. Intente nuevamente en unos minutos.',
         shifts: {
-          manana: 'Mañana · 07:30 a 12:30 hs',
-          tarde: 'Tarde · 12:30 a 18:30 hs',
-          noche: 'Noche · 18:30 a 23:30 hs',
-          trasnoche: 'Trasnoche · 23:30 a 04:30 hs',
+          manana: 'Mañana · 07:30 a 13:30 hs',
+          tarde: 'Tarde · 13:30 a 19:30 hs',
+          noche: 'Noche · 19:30 a 01:30 hs',
+          trasnoche: 'Madrugada · 01:30 a 07:30 hs (día siguiente)',
         },
       },
       confirmation: {
@@ -463,7 +463,7 @@ export const dictionaries = {
       },
       {
         q: 'When can I enter?',
-        a: 'Within the hours of the chosen shift. For example, for the Morning shift, from 07:30 to 12:30.',
+        a: 'Within the hours of the chosen shift. For example, for the Morning shift, from 07:30 to 13:30.',
       },
       {
         q: 'Can minors attend?',
@@ -566,7 +566,7 @@ export const dictionaries = {
         minorsTitle: 'Minors',
         minors: 'Guests aged 10 and over pay admission and must be supervised by a responsible adult.',
         entryTitle: 'Entry',
-        entry: 'Entry takes place within the hours of the chosen shift. For example, for the Morning shift, from 07:30 to 12:30.',
+        entry: 'Entry takes place within the hours of the chosen shift. For example, for the Morning shift, from 07:30 to 13:30.',
         sectorNote: 'One pool area is currently open; the remaining areas will be added soon.',
         dateLabel: 'Date',
         shiftLabel: 'Shift',
@@ -601,10 +601,10 @@ export const dictionaries = {
         rateLimit: 'Please wait a moment and try again.',
         unavailable: 'The payment could not be prepared. Please try again in a few minutes.',
         shifts: {
-          manana: 'Morning · 07:30 to 12:30',
-          tarde: 'Afternoon · 12:30 to 18:30',
-          noche: 'Evening · 18:30 to 23:30',
-          trasnoche: 'Late night · 23:30 to 04:30',
+          manana: 'Morning · 07:30 to 13:30',
+          tarde: 'Afternoon · 13:30 to 19:30',
+          noche: 'Night · 19:30 to 01:30',
+          trasnoche: 'Early morning · 01:30 to 07:30 (next day)',
         },
       },
       confirmation: {
