@@ -93,7 +93,7 @@ export default function ContratosDeAdhesionPage() {
           indicando el código de reserva.
         </p>
         <p>
-          Los menores abonan a partir de los 10 años y deben asistir con la supervisión de un adulto responsable. Es
+          Los menores abonan a partir de los 8 años y deben asistir con la supervisión de un adulto responsable. Es
           necesario asistir con traje de baño. Durante la estadía deben respetarse las indicaciones del personal y las
           normas de seguridad y convivencia del parque. El parque funciona con cualquier clima.
         </p>

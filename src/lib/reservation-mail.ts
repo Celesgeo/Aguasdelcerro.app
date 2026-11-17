@@ -101,7 +101,7 @@ ${kind === 'confirmed' ? row('Total pagado', formatARS(reservation.total)) : ''}
 <p style="margin:0 0 6px"><strong>Ingreso:</strong> ${escapeHtml(entryRule(reservation.shiftId))}</p>
 <p style="margin:0 0 6px"><strong>Al llegar:</strong> presente este correo o indique su código de reserva.</p>
 <p style="margin:0 0 6px"><strong>Qué traer:</strong> traje de baño.</p>
-<p style="margin:0 0 6px"><strong>Menores:</strong> abonan a partir de los 10 años y con supervisión de un adulto responsable.</p>
+<p style="margin:0 0 6px"><strong>Menores:</strong> abonan a partir de los 8 años y con supervisión de un adulto responsable.</p>
 <p style="margin:0 0 6px"><strong>Incluye:</strong> acceso al predio y a las piletas, sanitarios, vestuarios y estacionamiento.</p>
 <p style="margin:0 0 18px"><strong>Servicios adicionales:</strong> propuesta gastronómica y alquiler de batas.</p>
 <p style="margin:0 0 8px">Puede modificar la fecha o el turno hasta el <strong>${escapeHtml(formatDeadline(reservation))} hs</strong>, 48 horas antes de su turno. El parque funciona con cualquier clima.</p>
@@ -125,7 +125,7 @@ ${kind === 'confirmed' ? row('Total pagado', formatARS(reservation.total)) : ''}
     `Ingreso: ${entryRule(reservation.shiftId)}`,
     'Al llegar: presente este correo o indique su código de reserva.',
     'Qué traer: traje de baño.',
-    'Menores: abonan a partir de los 10 años y con supervisión de un adulto responsable.',
+    'Menores: abonan a partir de los 8 años y con supervisión de un adulto responsable.',
     'Incluye: acceso al predio y a las piletas, sanitarios, vestuarios y estacionamiento.',
     'Servicios adicionales: propuesta gastronómica y alquiler de batas.',
     '',
