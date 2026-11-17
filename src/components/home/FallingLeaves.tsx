@@ -25,7 +25,7 @@ type Leaf = {
   shape: number;
 };
 
-const COLORS = ['#c9a15a', '#b8893f', '#8f6a2c', '#7d8a45', '#a65f2a', '#d8b878'];
+const COLORS = ['#b5823c', '#9c6a2a', '#c99a4b', '#7f7a3a', '#8a5a2b', '#a0763a', '#6f7536', '#b0683a'];
 
 function rand(min: number, max: number) {
   return min + Math.random() * (max - min);
@@ -56,86 +56,145 @@ function makeLeaf(width: number, fromTop: boolean, height: number): Leaf {
     vrot: rand(-0.025, 0.025),
     flip: rand(0, Math.PI * 2),
     color: COLORS[Math.floor(Math.random() * COLORS.length)],
-    alpha: rand(0.55, 0.9),
+    alpha: rand(0.72, 0.95),
     shape: Math.floor(Math.random() * 5),
   };
 }
 
+/** Aclara u oscurece un color hex (amount entre -1 y 1). */
+function shade(hex: string, amount: number) {
+  const n = parseInt(hex.slice(1), 16);
+  const mix = (c: number) =>
+    Math.round(amount >= 0 ? c + (255 - c) * amount : c * (1 + amount));
+  const r = mix((n >> 16) & 255);
+  const g = mix((n >> 8) & 255);
+  const b = mix(n & 255);
+  return `rgb(${r},${g},${b})`;
+}
+
+/** Contorno de cada tipo de hoja, en unidades de 1 (se escala con el tamaño). */
+function leafPath(shape: number): Path2D {
+  const p = new Path2D();
+  switch (shape) {
+    case 1: // sauce: fina y larga, apenas curvada
+      p.moveTo(0, -1.35);
+      p.bezierCurveTo(0.34, -0.7, 0.3, 0.55, 0.04, 1.3);
+      p.bezierCurveTo(-0.26, 0.6, -0.3, -0.6, 0, -1.35);
+      break;
+    case 2: // redonda (álamo)
+      p.moveTo(0, -0.95);
+      p.bezierCurveTo(0.55, -1.0, 1.0, -0.35, 0.82, 0.25);
+      p.bezierCurveTo(0.65, 0.75, 0.25, 0.95, 0, 1.05);
+      p.bezierCurveTo(-0.25, 0.95, -0.65, 0.75, -0.82, 0.25);
+      p.bezierCurveTo(-1.0, -0.35, -0.55, -1.0, 0, -0.95);
+      break;
+    case 3: { // lobulada (tipo plátano/arce suave)
+      const pts: [number, number][] = [
+        [0, -1.05], [0.2, -0.62], [0.55, -0.82], [0.48, -0.38], [0.95, -0.25],
+        [0.62, 0.05], [0.78, 0.42], [0.35, 0.38], [0.12, 0.78], [0, 1.0],
+        [-0.12, 0.78], [-0.35, 0.38], [-0.78, 0.42], [-0.62, 0.05], [-0.95, -0.25],
+        [-0.48, -0.38], [-0.55, -0.82], [-0.2, -0.62],
+      ];
+      p.moveTo(pts[0][0], pts[0][1]);
+      for (let k = 1; k <= pts.length; k++) {
+        const [x0, y0] = pts[k - 1];
+        const [x1, y1] = pts[k % pts.length];
+        p.quadraticCurveTo(x0, y0, (x0 + x1) / 2, (y0 + y1) / 2);
+      }
+      p.closePath();
+      break;
+    }
+    default: // ovalada con punta (la clásica)
+      p.moveTo(0, -1.1);
+      p.bezierCurveTo(0.5, -0.75, 0.66, 0.2, 0.05, 1.0);
+      p.bezierCurveTo(-0.55, 0.35, -0.62, -0.62, 0, -1.1);
+  }
+  return p;
+}
+
+const PATHS = [0, 1, 2, 3].map(leafPath);
+
 function drawLeaf(ctx: CanvasRenderingContext2D, leaf: Leaf, t: number) {
   const s = leaf.size;
-  // El "flip" achica el ancho para simular que la hoja gira en el aire.
-  const squash = 0.35 + 0.65 * Math.abs(Math.cos(leaf.flip + t * leaf.swaySpeed));
+  // Giro en el aire: el ancho se achica y la hoja se oscurece un poco al ponerse de canto.
+  const turn = Math.cos(leaf.flip + t * leaf.swaySpeed * 0.8);
+  const squash = 0.25 + 0.75 * Math.abs(turn);
   ctx.save();
   ctx.translate(leaf.x + Math.sin(t * leaf.swaySpeed + leaf.phase) * leaf.sway, leaf.y);
-  ctx.rotate(leaf.rot);
-  ctx.scale(squash, 1);
+  ctx.rotate(leaf.rot + Math.sin(t * leaf.swaySpeed + leaf.phase) * 0.35);
+  ctx.scale(squash * s, s);
   ctx.globalAlpha = leaf.alpha;
 
-  ctx.fillStyle = leaf.color;
+  if (leaf.shape === 4) {
+    // Ramita de algarrobo: hojitas a los costados de un eje
+    const g = ctx.createLinearGradient(0, -1.1, 0, 1.1);
+    g.addColorStop(0, shade(leaf.color, 0.25));
+    g.addColorStop(1, shade(leaf.color, -0.2));
+    ctx.fillStyle = g;
+    ctx.strokeStyle = shade(leaf.color, -0.35);
+    ctx.lineWidth = 0.06;
+    ctx.beginPath();
+    ctx.moveTo(0, -1.15);
+    ctx.quadraticCurveTo(0.08, 0, 0, 1.15);
+    ctx.stroke();
+    for (let k = -2; k <= 2; k++) {
+      const y = k * 0.42;
+      for (const side of [-1, 1]) {
+        ctx.beginPath();
+        ctx.ellipse(side * 0.27, y, 0.25, 0.1, side * 0.55, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+    return;
+  }
+
+  const path = PATHS[leaf.shape];
+  const back = turn < 0; // dorso de la hoja: más apagado
+  const g = ctx.createLinearGradient(-0.8, -1, 0.8, 1);
+  g.addColorStop(0, shade(leaf.color, back ? 0.05 : 0.3));
+  g.addColorStop(0.55, shade(leaf.color, back ? -0.1 : 0));
+  g.addColorStop(1, shade(leaf.color, back ? -0.35 : -0.25));
+  ctx.fillStyle = g;
+  ctx.fill(path);
+
+  // Borde apenas más oscuro
+  ctx.strokeStyle = shade(leaf.color, -0.35);
+  ctx.globalAlpha = leaf.alpha * 0.55;
+  ctx.lineWidth = 0.035;
+  ctx.stroke(path);
+
+  // Nervaduras: central y laterales
+  ctx.clip(path);
+  ctx.strokeStyle = shade(leaf.color, back ? -0.45 : 0.35);
+  ctx.globalAlpha = leaf.alpha * 0.6;
+  ctx.lineWidth = 0.05;
   ctx.beginPath();
-  switch (leaf.shape) {
-    case 1: {
-      // Hoja fina y alargada (sauce)
-      ctx.moveTo(0, -s * 1.3);
-      ctx.bezierCurveTo(s * 0.32, -s * 0.6, s * 0.3, s * 0.6, 0, s * 1.3);
-      ctx.bezierCurveTo(-s * 0.3, s * 0.6, -s * 0.32, -s * 0.6, 0, -s * 1.3);
-      break;
-    }
-    case 2: {
-      // Hoja redonda
-      ctx.moveTo(0, -s * 0.9);
-      ctx.bezierCurveTo(s * 0.95, -s * 0.9, s * 0.95, s * 0.7, 0, s);
-      ctx.bezierCurveTo(-s * 0.95, s * 0.7, -s * 0.95, -s * 0.9, 0, -s * 0.9);
-      break;
-    }
-    case 3: {
-      // Hoja de cinco puntas
-      const pts = 5;
-      for (let i = 0; i <= pts * 2; i++) {
-        const a = -Math.PI / 2 + (i * Math.PI) / pts;
-        const r = i % 2 === 0 ? s : s * 0.48;
-        const px = Math.cos(a) * r;
-        const py = Math.sin(a) * r * 0.95;
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
-      }
-      ctx.closePath();
-      break;
-    }
-    case 4: {
-      // Ramita de algarrobo: hojitas a los costados de un eje
-      ctx.fill();
-      ctx.strokeStyle = leaf.color;
-      ctx.lineWidth = Math.max(0.7, s * 0.07);
+  ctx.moveTo(0, -0.95);
+  ctx.quadraticCurveTo(0.06, 0, 0, 1.05);
+  ctx.stroke();
+  ctx.lineWidth = 0.03;
+  for (let k = -0.55; k <= 0.6; k += 0.28) {
+    for (const side of [-1, 1]) {
       ctx.beginPath();
-      ctx.moveTo(0, -s * 1.1);
-      ctx.lineTo(0, s * 1.1);
+      ctx.moveTo(0.02, k);
+      ctx.quadraticCurveTo(side * 0.3, k - 0.12, side * 0.62, k - 0.32);
       ctx.stroke();
-      for (let k = -2; k <= 2; k++) {
-        const y = k * s * 0.42;
-        for (const side of [-1, 1]) {
-          ctx.beginPath();
-          ctx.ellipse(side * s * 0.28, y, s * 0.26, s * 0.11, side * 0.5, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-      ctx.restore();
-      return;
-    }
-    default: {
-      ctx.moveTo(0, -s);
-      ctx.bezierCurveTo(s * 0.62, -s * 0.55, s * 0.6, s * 0.45, 0, s);
-      ctx.bezierCurveTo(-s * 0.6, s * 0.45, -s * 0.62, -s * 0.55, 0, -s);
     }
   }
-  ctx.fill();
+  ctx.restore();
 
-  // Nervadura central y tallito
-  ctx.strokeStyle = 'rgba(60, 35, 12, 0.45)';
-  ctx.lineWidth = Math.max(0.6, s * 0.06);
+  // Tallito
+  ctx.save();
+  ctx.translate(leaf.x + Math.sin(t * leaf.swaySpeed + leaf.phase) * leaf.sway, leaf.y);
+  ctx.rotate(leaf.rot + Math.sin(t * leaf.swaySpeed + leaf.phase) * 0.35);
+  ctx.scale(squash * s, s);
+  ctx.globalAlpha = leaf.alpha;
+  ctx.strokeStyle = shade(leaf.color, -0.4);
+  ctx.lineWidth = 0.06;
   ctx.beginPath();
-  ctx.moveTo(0, -s * 0.85);
-  ctx.lineTo(0, s * 1.25);
+  ctx.moveTo(0, leaf.shape === 2 ? 1.0 : 0.95);
+  ctx.quadraticCurveTo(0.05, 1.15, 0.12, 1.35);
   ctx.stroke();
   ctx.restore();
 }
@@ -203,7 +262,7 @@ export default function FallingLeaves() {
 
       for (let i = leaves.length - 1; i >= 0; i--) {
         const leaf = leaves[i];
-        leaf.y += leaf.vy + Math.abs(scrollPush) * 0.6;
+        leaf.y += leaf.vy * (0.75 + 0.45 * Math.abs(Math.sin(t * leaf.swaySpeed + leaf.phase))) + Math.abs(scrollPush) * 0.6;
         leaf.rot += leaf.vrot;
         leaf.flip += 0.01;
         if (leaf.y > height + 40) {
