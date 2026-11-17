@@ -52,33 +52,37 @@ footer{padding-block:40px 48px;text-align:center}
 footer p{margin:0;font-size:12.5px;color:var(--ink-soft);line-height:1.7}
 footer .label{margin-bottom:8px}
 
-/* Escena: la Coca se sirve entre las letras */
-.escena-titulo{position:relative;width:min(340px,100%);margin:8px auto 0;padding-top:118px;padding-bottom:96px}
-.titulo{margin:0;display:flex;justify-content:center;font-family:var(--display);font-weight:600;font-size:46px;letter-spacing:.06em;line-height:1}
+/* Escena: un hilo de gaseosa cae desde arriba entre las letras */
+.escena-titulo{position:relative;width:min(340px,100%);margin:6px auto 0;padding-top:96px;padding-bottom:64px;--cola:#3b1206}
+.titulo{position:relative;z-index:2;margin:0;display:flex;justify-content:center;font-family:var(--display);font-weight:600;font-size:46px;letter-spacing:.06em;line-height:1}
 .titulo span{display:inline-block}
-.titulo .hueco{width:30px}
-.botella{position:absolute;left:calc(50% - 97px);top:-14px;width:40px;transform-origin:50% 85%;transform:rotate(112deg)}
-.chorro{position:absolute;left:calc(50% - 2px);top:100px;width:5px;height:126px;border-radius:3px;background:linear-gradient(90deg,#2a0c04,#7a2e12 50%,#2a0c04);transform-origin:top;transform:scaleY(1)}
-.vaso{position:absolute;left:calc(50% - 30px);bottom:0;width:60px}
-.liquido{transform-box:fill-box;transform-origin:bottom;transform:scaleY(.82)}
-.espuma{transform:translateY(0)}
-.burbuja{opacity:0}
+.titulo .hueco{width:28px}
+.chorro{position:absolute;z-index:1;left:calc(50% - 3.5px);top:14px;width:7px;height:calc(100% - 30px);border-radius:3px;overflow:hidden;
+  background:linear-gradient(90deg,#3a0f04 0%,#7a2a0e 28%,#b8501c 50%,#7a2a0e 72%,#3a0f04 100%);
+  box-shadow:0 0 10px rgba(200,110,40,.35);transform-origin:top;-webkit-mask-image:linear-gradient(180deg,transparent 0,#000 40px,#000 85%,transparent);mask-image:linear-gradient(180deg,transparent 0,#000 30px,#000 88%,transparent)}
+.chorro .brillo{position:absolute;left:1px;top:0;width:1.5px;height:30%;background:linear-gradient(180deg,transparent,rgba(255,226,190,.85),transparent);border-radius:2px}
+.gota{position:absolute;z-index:1;left:calc(50% - 2px);top:0;width:4px;height:7px;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;background:#9a3c16;opacity:0}
+.salpicon{position:absolute;z-index:1;left:50%;bottom:22px;width:0;height:0}
+.salpicon i{position:absolute;left:-2px;top:0;width:3px;height:3px;border-radius:50%;background:rgba(255,236,210,.75);opacity:0}
 @media (prefers-reduced-motion:no-preference){
-  .escena-titulo.anim .botella{animation:inclinar 4.6s ease-in-out both}
-  .escena-titulo.anim .chorro{animation:chorro 4.6s ease-in-out both}
-  .escena-titulo.anim .liquido{animation:llenar 4.6s ease-in-out both}
-  .escena-titulo.anim .espuma{animation:espuma 4.6s ease-in-out both}
-  .escena-titulo.anim .burbuja{animation:burbuja 1.6s ease-in infinite 1.6s}
-  .escena-titulo.anim .b2{animation-delay:2s}.escena-titulo.anim .b3{animation-delay:2.4s}
-  .escena-titulo.anim .titulo span{animation:letra .7s cubic-bezier(.2,.8,.3,1.2) both}
-  .escena-titulo.anim .titulo span:nth-child(2){animation-delay:.08s}.escena-titulo.anim .titulo span:nth-child(3){animation-delay:.16s}.escena-titulo.anim .titulo span:nth-child(5){animation-delay:.24s}.escena-titulo.anim .titulo span:nth-child(6){animation-delay:.32s}
+  .escena-titulo.anim .chorro{animation:caeChorro 1.6s cubic-bezier(.5,0,.3,1) both, ondula 2.4s ease-in-out 1.6s infinite}
+  .escena-titulo.anim .chorro .brillo{animation:brillo 1.8s linear 1.2s infinite}
+  .escena-titulo.anim .gota{animation:gota 2.8s ease-in 1.8s infinite}
+  .escena-titulo.anim .g2{animation-delay:2.7s}.escena-titulo.anim .g3{animation-delay:3.6s}
+  .escena-titulo.anim .salpicon i{animation:burbuja 2.2s ease-out 1.6s infinite}
+  .escena-titulo.anim .salpicon i:nth-child(2){animation-delay:2s;left:4px}
+  .escena-titulo.anim .salpicon i:nth-child(3){animation-delay:2.4s;left:-7px}
+  .escena-titulo.anim .salpicon i:nth-child(4){animation-delay:2.9s;left:7px}
+  .escena-titulo.anim .salpicon i:nth-child(5){animation-delay:3.3s;left:-3px}
+  .escena-titulo.anim .titulo span{animation:letra .9s cubic-bezier(.2,.8,.3,1) both}
+  .escena-titulo.anim .titulo span:nth-child(2){animation-delay:.1s}.escena-titulo.anim .titulo span:nth-child(3){animation-delay:.2s}.escena-titulo.anim .titulo span:nth-child(5){animation-delay:.3s}.escena-titulo.anim .titulo span:nth-child(6){animation-delay:.4s}
 }
-@keyframes inclinar{0%{transform:translate(40px,-40px) rotate(20deg);opacity:0}15%{transform:translate(0,0) rotate(60deg);opacity:1}30%,80%{transform:rotate(112deg)}100%{transform:rotate(112deg)}}
-@keyframes chorro{0%,28%{transform:scaleY(0);opacity:1}40%{transform:scaleY(1)}82%{transform:scaleY(1);opacity:1}100%{transform:scaleY(1);opacity:1}}
-@keyframes llenar{0%,36%{transform:scaleY(0)}90%,100%{transform:scaleY(.82)}}
-@keyframes espuma{0%,36%{transform:translateY(64px)}90%,100%{transform:translateY(0)}}
-@keyframes burbuja{0%{opacity:0;transform:translateY(0)}20%{opacity:1}100%{opacity:0;transform:translateY(-52px)}}
-@keyframes letra{from{transform:translateY(-18px);opacity:0}to{transform:none;opacity:1}}
+@keyframes caeChorro{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes ondula{0%,100%{width:7px;left:calc(50% - 3.5px)}50%{width:5px;left:calc(50% - 2.5px)}}
+@keyframes brillo{from{transform:translateY(-40%)}to{transform:translateY(360%)}}
+@keyframes gota{0%{opacity:0;transform:translateY(-10px)}10%{opacity:.9}70%{opacity:.9}100%{opacity:0;transform:translateY(190px)}}
+@keyframes burbuja{0%{opacity:0;transform:translate(0,0) scale(.6)}25%{opacity:.9}100%{opacity:0;transform:translate(0,-26px) scale(1)}}
+@keyframes letra{from{transform:translateY(-14px);opacity:0}to{transform:none;opacity:1}}
 
 /* La hamburguesa se arma capa por capa */
 .armado{width:min(240px,74%);margin:8px auto 0;perspective:600px}
@@ -99,32 +103,10 @@ footer .label{margin-bottom:8px}
   <div class="wrap">
     <img src="/invitacion-privada/logo.png" alt="Aguas del Cerro · Parque térmico y mirador gastronómico">
     <div class="escena-titulo">
-      <svg class="botella" viewBox="0 0 60 150" aria-hidden="true">
-        <defs>
-          <linearGradient id="vidrio" x1="0" x2="1"><stop offset="0" stop-color="#2a0f06"/><stop offset=".35" stop-color="#5a2412"/><stop offset=".55" stop-color="#7a3a1e"/><stop offset="1" stop-color="#220c05"/></linearGradient>
-        </defs>
-        <path d="M24 2h12v26c0 8 14 14 14 34v78c0 5-4 8-8 8H18c-4 0-8-3-8-8V62c0-20 14-26 14-34z" fill="url(#vidrio)" stroke="rgba(243,235,220,.35)" stroke-width="1.2"/>
-        <rect x="22" y="0" width="16" height="7" rx="2" fill="#c8102e"/>
-        <rect x="10" y="78" width="40" height="30" fill="#c8102e"/>
-        <path d="M16 70v66" stroke="rgba(255,255,255,.28)" stroke-width="3" stroke-linecap="round"/>
-      </svg>
-      <span class="chorro" aria-hidden="true"></span>
+      <span class="chorro" aria-hidden="true"><i class="brillo"></i></span>
+      <span class="gota g1" aria-hidden="true"></span><span class="gota g2" aria-hidden="true"></span><span class="gota g3" aria-hidden="true"></span>
       <h1 class="titulo"><span>C</span><span>A</span><span>R</span><span class="hueco" aria-hidden="true"></span><span>T</span><span>A</span></h1>
-      <svg class="vaso" viewBox="0 0 70 90" aria-hidden="true">
-        <defs>
-          <clipPath id="vaso-clip"><path d="M8 6h54l-6 78H14z"/></clipPath>
-          <linearGradient id="gaseosa" x1="0" x2="1"><stop offset="0" stop-color="#3a1206"/><stop offset=".5" stop-color="#6b250c"/><stop offset="1" stop-color="#2a0c04"/></linearGradient>
-        </defs>
-        <g clip-path="url(#vaso-clip)">
-          <rect class="liquido" x="0" y="6" width="70" height="80" fill="url(#gaseosa)"/>
-          <rect class="espuma" x="0" y="20" width="70" height="5" fill="#d9b48a"/>
-          <circle class="burbuja b1" cx="24" cy="80" r="1.6" fill="rgba(255,240,220,.7)"/>
-          <circle class="burbuja b2" cx="40" cy="80" r="1.2" fill="rgba(255,240,220,.7)"/>
-          <circle class="burbuja b3" cx="50" cy="80" r="1.4" fill="rgba(255,240,220,.7)"/>
-        </g>
-        <path d="M8 6h54l-6 78H14z" fill="rgba(255,255,255,.06)" stroke="rgba(243,235,220,.6)" stroke-width="1.6"/>
-        <path d="M15 12l4 66" stroke="rgba(255,255,255,.3)" stroke-width="2.4" stroke-linecap="round"/>
-      </svg>
+      <span class="salpicon" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
     </div>
     <p class="sub">Mirador gastronómico</p>
   </div>
