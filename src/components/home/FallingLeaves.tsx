@@ -112,7 +112,12 @@ function leafPath(shape: number): Path2D {
   return p;
 }
 
-const PATHS = [0, 1, 2, 3].map(leafPath);
+// Se crean recién en el navegador (Path2D no existe al renderizar en el servidor).
+let PATHS: Path2D[] | null = null;
+function paths() {
+  if (!PATHS) PATHS = [0, 1, 2, 3].map(leafPath);
+  return PATHS;
+}
 
 function drawLeaf(ctx: CanvasRenderingContext2D, leaf: Leaf, t: number) {
   const s = leaf.size;
@@ -149,7 +154,7 @@ function drawLeaf(ctx: CanvasRenderingContext2D, leaf: Leaf, t: number) {
     return;
   }
 
-  const path = PATHS[leaf.shape];
+  const path = paths()[leaf.shape];
   const back = turn < 0; // dorso de la hoja: más apagado
   const g = ctx.createLinearGradient(-0.8, -1, 0.8, 1);
   g.addColorStop(0, shade(leaf.color, back ? 0.05 : 0.3));
