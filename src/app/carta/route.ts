@@ -55,8 +55,7 @@ footer .label{margin-bottom:8px}
 /* Escena: un hilo de gaseosa cae desde arriba entre las letras */
 .escena-titulo{position:relative;width:min(340px,100%);margin:6px auto 0;padding-top:96px;padding-bottom:64px;--cola:#3b1206}
 .titulo{position:relative;z-index:2;margin:0;display:flex;justify-content:center;font-family:var(--display);font-weight:600;font-size:46px;letter-spacing:.06em;line-height:1}
-.titulo span{display:inline-block}
-.titulo .hueco{width:28px}
+.titulo span{display:inline-block;text-shadow:0 0 6px rgba(36,19,10,.9)}
 .chorro{position:absolute;z-index:1;left:calc(50% - 3.5px);top:14px;width:7px;height:calc(100% - 30px);border-radius:3px;overflow:hidden;
   background:linear-gradient(90deg,#3a0f04 0%,#7a2a0e 28%,#b8501c 50%,#7a2a0e 72%,#3a0f04 100%);
   box-shadow:0 0 10px rgba(200,110,40,.35);transform-origin:top;-webkit-mask-image:linear-gradient(180deg,transparent 0,#000 40px,#000 85%,transparent);mask-image:linear-gradient(180deg,transparent 0,#000 30px,#000 88%,transparent)}
@@ -75,7 +74,7 @@ footer .label{margin-bottom:8px}
   .escena-titulo.anim .salpicon i:nth-child(4){animation-delay:2.9s;left:7px}
   .escena-titulo.anim .salpicon i:nth-child(5){animation-delay:3.3s;left:-3px}
   .escena-titulo.anim .titulo span{animation:letra .9s cubic-bezier(.2,.8,.3,1) both}
-  .escena-titulo.anim .titulo span:nth-child(2){animation-delay:.1s}.escena-titulo.anim .titulo span:nth-child(3){animation-delay:.2s}.escena-titulo.anim .titulo span:nth-child(5){animation-delay:.3s}.escena-titulo.anim .titulo span:nth-child(6){animation-delay:.4s}
+  .escena-titulo.anim .titulo span:nth-child(2){animation-delay:.1s}.escena-titulo.anim .titulo span:nth-child(3){animation-delay:.2s}.escena-titulo.anim .titulo span:nth-child(4){animation-delay:.3s}.escena-titulo.anim .titulo span:nth-child(5){animation-delay:.4s}
 }
 @keyframes caeChorro{from{transform:scaleY(0)}to{transform:scaleY(1)}}
 @keyframes ondula{0%,100%{width:7px;left:calc(50% - 3.5px)}50%{width:5px;left:calc(50% - 2.5px)}}
@@ -105,7 +104,7 @@ footer .label{margin-bottom:8px}
     <div class="escena-titulo">
       <span class="chorro" aria-hidden="true"><i class="brillo"></i></span>
       <span class="gota g1" aria-hidden="true"></span><span class="gota g2" aria-hidden="true"></span><span class="gota g3" aria-hidden="true"></span>
-      <h1 class="titulo"><span>C</span><span>A</span><span>R</span><span class="hueco" aria-hidden="true"></span><span>T</span><span>A</span></h1>
+      <h1 class="titulo"><span>C</span><span>A</span><span>R</span><span>T</span><span>A</span></h1>
       <span class="salpicon" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
     </div>
     <p class="sub">Mirador gastronómico</p>
