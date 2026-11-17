@@ -22,6 +22,7 @@ type Leaf = {
   flip: number;
   color: string;
   alpha: number;
+  shape: number;
 };
 
 const COLORS = ['#c9a15a', '#b8893f', '#8f6a2c', '#7d8a45', '#a65f2a', '#d8b878'];
@@ -30,14 +31,25 @@ function rand(min: number, max: number) {
   return min + Math.random() * (max - min);
 }
 
+/** Ancho libre a cada lado del contenido (donde no hay fotos ni textos). */
+function sideBand(width: number) {
+  const content = Math.min(width, 1200);
+  const margin = (width - content) / 2;
+  return margin >= 70 ? margin - 10 : Math.min(26, width * 0.07);
+}
+
 function makeLeaf(width: number, fromTop: boolean, height: number): Leaf {
-  const size = rand(9, 19);
+  const band = sideBand(width);
+  const small = band < 40;
+  const size = small ? rand(6, 10) : rand(9, 18);
+  const left = Math.random() < 0.5;
+  const x = left ? rand(4, Math.max(8, band - 6)) : rand(width - Math.max(8, band - 6), width - 4);
   return {
-    x: rand(-20, width + 20),
+    x,
     y: fromTop ? rand(-60, -size * 2) : rand(-40, height * 0.9),
     size,
     vy: rand(0.35, 0.85),
-    sway: rand(14, 34),
+    sway: small ? rand(3, 7) : Math.min(rand(10, 26), band * 0.25),
     swaySpeed: rand(0.6, 1.3),
     phase: rand(0, Math.PI * 2),
     rot: rand(0, Math.PI * 2),
@@ -45,6 +57,7 @@ function makeLeaf(width: number, fromTop: boolean, height: number): Leaf {
     flip: rand(0, Math.PI * 2),
     color: COLORS[Math.floor(Math.random() * COLORS.length)],
     alpha: rand(0.55, 0.9),
+    shape: Math.floor(Math.random() * 5),
   };
 }
 
@@ -58,11 +71,63 @@ function drawLeaf(ctx: CanvasRenderingContext2D, leaf: Leaf, t: number) {
   ctx.scale(squash, 1);
   ctx.globalAlpha = leaf.alpha;
 
-  ctx.beginPath();
-  ctx.moveTo(0, -s);
-  ctx.bezierCurveTo(s * 0.62, -s * 0.55, s * 0.6, s * 0.45, 0, s);
-  ctx.bezierCurveTo(-s * 0.6, s * 0.45, -s * 0.62, -s * 0.55, 0, -s);
   ctx.fillStyle = leaf.color;
+  ctx.beginPath();
+  switch (leaf.shape) {
+    case 1: {
+      // Hoja fina y alargada (sauce)
+      ctx.moveTo(0, -s * 1.3);
+      ctx.bezierCurveTo(s * 0.32, -s * 0.6, s * 0.3, s * 0.6, 0, s * 1.3);
+      ctx.bezierCurveTo(-s * 0.3, s * 0.6, -s * 0.32, -s * 0.6, 0, -s * 1.3);
+      break;
+    }
+    case 2: {
+      // Hoja redonda
+      ctx.moveTo(0, -s * 0.9);
+      ctx.bezierCurveTo(s * 0.95, -s * 0.9, s * 0.95, s * 0.7, 0, s);
+      ctx.bezierCurveTo(-s * 0.95, s * 0.7, -s * 0.95, -s * 0.9, 0, -s * 0.9);
+      break;
+    }
+    case 3: {
+      // Hoja de cinco puntas
+      const pts = 5;
+      for (let i = 0; i <= pts * 2; i++) {
+        const a = -Math.PI / 2 + (i * Math.PI) / pts;
+        const r = i % 2 === 0 ? s : s * 0.48;
+        const px = Math.cos(a) * r;
+        const py = Math.sin(a) * r * 0.95;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      break;
+    }
+    case 4: {
+      // Ramita de algarrobo: hojitas a los costados de un eje
+      ctx.fill();
+      ctx.strokeStyle = leaf.color;
+      ctx.lineWidth = Math.max(0.7, s * 0.07);
+      ctx.beginPath();
+      ctx.moveTo(0, -s * 1.1);
+      ctx.lineTo(0, s * 1.1);
+      ctx.stroke();
+      for (let k = -2; k <= 2; k++) {
+        const y = k * s * 0.42;
+        for (const side of [-1, 1]) {
+          ctx.beginPath();
+          ctx.ellipse(side * s * 0.28, y, s * 0.26, s * 0.11, side * 0.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      ctx.restore();
+      return;
+    }
+    default: {
+      ctx.moveTo(0, -s);
+      ctx.bezierCurveTo(s * 0.62, -s * 0.55, s * 0.6, s * 0.45, 0, s);
+      ctx.bezierCurveTo(-s * 0.6, s * 0.45, -s * 0.62, -s * 0.55, 0, -s);
+    }
+  }
   ctx.fill();
 
   // Nervadura central y tallito
@@ -141,7 +206,7 @@ export default function FallingLeaves() {
         leaf.y += leaf.vy + Math.abs(scrollPush) * 0.6;
         leaf.rot += leaf.vrot;
         leaf.flip += 0.01;
-        if (leaf.y > height + 40 || leaf.x < -80 || leaf.x > width + 80) {
+        if (leaf.y > height + 40) {
           if (leaves.length > ambient()) leaves.splice(i, 1);
           else Object.assign(leaf, makeLeaf(width, true, height));
           continue;

@@ -1,5 +1,6 @@
 import Hero from '@/components/home/Hero';
 import FallingLeaves from '@/components/home/FallingLeaves';
+import LechuzaAsomada from '@/components/home/LechuzaAsomada';
 import ExperienceSection from '@/components/home/ExperienceSection';
 import TermasSection from '@/components/home/TermasSection';
 import MiradorSection from '@/components/home/MiradorSection';
@@ -26,6 +27,7 @@ export default function HomePage() {
   return (
     <div className="overflow-x-clip">
       <FallingLeaves />
+      <LechuzaAsomada />
       <Hero image={HERO_VIDEO_POSTER} video={HERO_VIDEO} />
       <ExperienceSection />
       <TermasSection />
