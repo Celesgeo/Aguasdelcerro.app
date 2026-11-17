@@ -3,11 +3,11 @@ import { EXPERIENCES } from '@/lib/constants';
 /** Imágenes editoriales HD por experiencia (generadas a partir del material real). */
 export const EXPERIENCE_IMAGES: Record<(typeof EXPERIENCES)[number]['slug'], string> = {
   relax: '/images/real/real-termas-luz-calida.jpg',
-  naturaleza: '/images/real/real-cardon-noche-cielo.jpg',
-  fotografia: '/images/real/real-cardon-ciudad-noche.jpg',
-  senderismo: '/images/real/real-mirador-sierras.jpg',
+  naturaleza: '/images/real/real-cardon-flores-noche.jpg',
+  fotografia: '/images/real/real-cardon-silueta-atardecer.jpg',
+  senderismo: '/images/real/real-noche-campo-luces-ciudad.jpg',
   gastronomia: '/images/real/real-evento-mirador-noche.jpg',
-  atardeceres: '/images/real/real-atardecer-parque.jpg',
+  atardeceres: '/images/real/real-atardecer-sol-cardon.jpg',
   descanso: '/images/real/real-spa-masajes-hombros.jpg',
 };
 

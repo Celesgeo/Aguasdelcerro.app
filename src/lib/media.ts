@@ -37,8 +37,8 @@ const IMAGE_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp', '.avif']);
 const VIDEO_EXT = new Set(['.mp4', '.webm', '.mov']);
 
 /** Video principal del hero (optimizado para web). */
-export const HERO_VIDEO = '/videos/termas-noche.mp4';
-export const HERO_VIDEO_POSTER = '/images/termas-noche-poster.jpg';
+export const HERO_VIDEO = '/videos/aguas-del-cerro-reel.mp4';
+export const HERO_VIDEO_POSTER = '/images/aguas-del-cerro-reel-poster.jpg';
 
 const IMAGE_DIRS = [
   { dir: 'real', urlPrefix: '/images/real' },
@@ -82,11 +82,15 @@ function altFromFilename(filename: string, category: MediaCategory): string {
   if (n.includes('real-cardon')) return 'Cardón bajo el cielo nocturno del parque';
   if (n.includes('real-luna')) return 'Luna llena sobre el parque de Aguas del Cerro';
   if (n.includes('real-mirador-sierras')) return 'Mirador gastronómico frente a las sierras riojanas';
+  if (n.includes('real-atardecer-sol-cardon')) return 'Atardecer naranja sobre el parque con un cardón y la llanura riojana';
+  if (n.includes('real-cardon-silueta')) return 'Silueta de un cardón al atardecer en Aguas del Cerro';
+  if (n.includes('real-cardon-flores')) return 'Cardón florecido de noche con las luces de la ciudad';
+  if (n.includes('real-noche-campo-luces')) return 'Parque al anochecer con las luces de La Rioja en el horizonte';
   if (n.includes('real-rosas')) return 'Rosas del parque de noche con la ciudad de fondo';
   if (n.includes('real-spa')) return 'Masajes y bienestar (imagen ilustrativa)';
   if (n.includes('real-termas-vista-ciudad')) return 'Pileta térmica con vista nocturna a la ciudad';
   if (n.includes('real-termas-cielo')) return 'Piletas térmicas bajo el techo de luces';
-  if (n.includes('real-atardecer-parque')) return 'Atardecer sobre el parque y las sierras';
+  if (n.includes('real-atardecer-parque')) return 'Atardecer sobre el parque al pie del cerro Velasco';
   if (n.includes('real-evento')) return 'Mirador nocturno con vista a la ciudad de La Rioja';
   if (n.includes('real-termas-noche')) return 'Vista nocturna del parque térmico hacia la ciudad';
   if (n.includes('real-termas') || n.includes('piletas')) return 'Pileta térmica de piedra iluminada de noche';
@@ -200,8 +204,8 @@ export function getSectionMedia() {
   return {
     termas: by('real-termas-luz-violeta') ?? '/images/real/real-termas-luz-violeta.jpg',
     mirador: by('real-evento') ?? '/images/real/real-evento-mirador-noche.jpg',
-    experiencia: by('real-atardecer-parque') ?? '/images/real/real-atardecer-parque.jpg',
-    naturaleza: by('real-cardon-noche') ?? '/images/real/real-cardon-noche-cielo.jpg',
+    experiencia: by('real-atardecer-sol-cardon') ?? '/images/real/real-atardecer-sol-cardon.jpg',
+    naturaleza: by('real-cardon-flores') ?? '/images/real/real-cardon-flores-noche.jpg',
     cartel: by('real-cartel') ?? '/images/real/real-cartel-noche.jpg',
   };
 }
