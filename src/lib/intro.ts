@@ -1,16 +1,16 @@
 /**
  * Intro cinematográfica de la home.
  *
- * Duración total ≈ INTRO_HOLD_MS + INTRO_REVEAL_MS (~3 s).
+ * Duración total ≈ INTRO_HOLD_MS + INTRO_REVEAL_MS (~3,8 s).
  * Para desactivarla, poné INTRO_ENABLED en false.
  */
 export const INTRO_ENABLED = true;
 
 /** Tiempo con la escena visible. */
-export const INTRO_HOLD_MS = 2200;
+export const INTRO_HOLD_MS = 2900;
 
 /** Fundido hacia el hero. */
-export const INTRO_REVEAL_MS = 800;
+export const INTRO_REVEAL_MS = 900;
 
 export const INTRO_DONE_MS = INTRO_HOLD_MS + INTRO_REVEAL_MS;
 
