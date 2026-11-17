@@ -53,7 +53,7 @@ footer p{margin:0;font-size:12.5px;color:var(--ink-soft);line-height:1.7}
 footer .label{margin-bottom:8px}
 
 /* Escena: un hilo de gaseosa cae desde arriba entre las letras */
-.escena-titulo{position:relative;width:min(340px,100%);margin:6px auto 0;padding-top:96px;padding-bottom:64px;--cola:#3b1206}
+.escena-titulo{position:relative;width:min(340px,100%);margin:6px auto 0;padding-top:26px;padding-bottom:8px}
 .titulo{position:relative;z-index:2;margin:0;display:flex;justify-content:center;font-family:var(--display);font-weight:600;font-size:46px;letter-spacing:.06em;line-height:1}
 .titulo span{display:inline-block;text-shadow:0 0 6px rgba(36,19,10,.9)}
 .chorro{position:absolute;z-index:1;left:calc(50% - 3.5px);top:14px;width:7px;height:calc(100% - 30px);border-radius:3px;overflow:hidden;
@@ -102,10 +102,7 @@ footer .label{margin-bottom:8px}
   <div class="wrap">
     <img src="/invitacion-privada/logo.png" alt="Aguas del Cerro · Parque térmico y mirador gastronómico">
     <div class="escena-titulo">
-      <span class="chorro" aria-hidden="true"><i class="brillo"></i></span>
-      <span class="gota g1" aria-hidden="true"></span><span class="gota g2" aria-hidden="true"></span><span class="gota g3" aria-hidden="true"></span>
       <h1 class="titulo"><span>C</span><span>A</span><span>R</span><span>T</span><span>A</span></h1>
-      <span class="salpicon" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
     </div>
     <p class="sub">Mirador gastronómico</p>
   </div>
