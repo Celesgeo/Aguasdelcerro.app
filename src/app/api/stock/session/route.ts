@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
     const pin = String(body?.pin ?? '').trim();
-    const token = pin && pin.length <= 12 ? await checkStaffPin(pin) : null;
+    const token = pin && pin.length <= 40 ? await checkStaffPin(pin) : null;
     if (!token) {
       await uniformResponseDelay();
       return NextResponse.json({ ok: false, error: 'Clave incorrecta' }, { status: 401 });

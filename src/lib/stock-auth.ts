@@ -4,7 +4,7 @@ import { COOKIE_NAME as ADMIN_COOKIE, verifyAdminSessionToken } from '@/lib/admi
 import { getSetting, setSetting } from '@/lib/stock-store';
 
 /**
- * Acceso del personal a /stock con una clave numérica compartida que define el administrador.
+ * Acceso del personal a /stock con una clave compartida que define el administrador.
  * Al cambiar la clave, se cierran todas las sesiones del personal (cambia la "versión").
  */
 
@@ -30,9 +30,24 @@ function hmac(body: string): string {
 
 type StoredPin = { salt: string; hash: string; version: string };
 
+/**
+ * Clave de respaldo definida en Railway (STOCK_STAFF_PASSWORD). Se usa solo si el
+ * administrador todavía no guardó una desde el panel; la del panel siempre tiene prioridad.
+ */
+function envPin(): StoredPin | null {
+  const value = process.env.STOCK_STAFF_PASSWORD?.trim();
+  if (!value || !isValidPinFormat(value)) return null;
+  const salt = 'env';
+  return {
+    salt,
+    hash: scryptSync(value, salt, 32).toString('base64url'),
+    version: `env-${createHmac('sha256', secret()).update(value).digest('base64url').slice(0, 10)}`,
+  };
+}
+
 async function readPin(): Promise<StoredPin | null> {
   const raw = await getSetting(PIN_KEY);
-  if (!raw) return null;
+  if (!raw) return envPin();
   try {
     const parsed = JSON.parse(raw) as StoredPin;
     if (parsed.salt && parsed.hash && parsed.version) return parsed;
@@ -46,8 +61,9 @@ export async function isStaffPinConfigured(): Promise<boolean> {
   return Boolean(await readPin());
 }
 
+/** Entre 6 y 40 caracteres (letras, números o símbolos). Distingue mayúsculas. */
 export function isValidPinFormat(pin: string): boolean {
-  return /^\d{6,12}$/.test(pin);
+  return pin.length >= 6 && pin.length <= 40 && !/[\u0000-\u001F\u007F]/.test(pin);
 }
 
 export async function setStaffPin(pin: string): Promise<void> {

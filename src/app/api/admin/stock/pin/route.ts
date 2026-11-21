@@ -23,7 +23,7 @@ export async function PUT(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
   const pin = String(body?.pin ?? '').trim();
   if (!isValidPinFormat(pin)) {
-    return NextResponse.json({ ok: false, error: 'La clave tiene que tener entre 6 y 12 números' }, { status: 400 });
+    return NextResponse.json({ ok: false, error: 'La clave tiene que tener entre 6 y 40 caracteres' }, { status: 400 });
   }
   try {
     await setStaffPin(pin);

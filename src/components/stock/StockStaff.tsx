@@ -240,12 +240,14 @@ export default function StockStaff() {
           )}
           <input
             type="password"
-            inputMode="numeric"
             autoComplete="off"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
             value={pin}
-            onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 12))}
-            className="w-full border border-brand-brown/20 bg-white px-4 py-3 text-2xl tracking-[0.4em] text-center font-body"
-            placeholder="••••••"
+            onChange={(e) => setPin(e.target.value.slice(0, 40))}
+            className="w-full border border-brand-brown/20 bg-white px-4 py-3 text-lg text-center font-body"
+            placeholder="Clave"
             aria-label="Clave"
           />
           {error && <p className="text-sm text-red-700 font-body">{error}</p>}

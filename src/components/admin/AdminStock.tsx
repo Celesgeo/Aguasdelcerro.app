@@ -567,11 +567,12 @@ function PinTab({ onNotice, onError }: TabProps) {
       </p>
       <input
         type="password"
-        inputMode="numeric"
         autoComplete="new-password"
+        autoCapitalize="none"
+        spellCheck={false}
         value={pin}
-        onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 12))}
-        placeholder="Entre 6 y 12 números"
+        onChange={(e) => setPin(e.target.value.slice(0, 40))}
+        placeholder="Entre 6 y 40 caracteres (distingue mayúsculas)"
         className={input}
       />
       <button type="submit" disabled={busy || pin.length < 6} className={`${btn} bg-brand-brown text-brand-cream`}>
