@@ -4,7 +4,17 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import AdminShell from '@/components/admin/AdminShell';
 import { STOCK_CATEGORIES } from '@/lib/stock-shared';
+import type { ShiftMembership } from '@/lib/stock-memberships';
 import type { StockMovement, StockProduct } from '@/lib/stock-store';
+
+type DayMembership = ShiftMembership & { shiftId: string };
+
+const PAYMENT_LABEL: Record<string, string> = {
+  efectivo: 'Efectivo',
+  transferencia: 'Transferencia',
+  tarjeta: 'Tarjeta',
+  mercadopago: 'Mercado Pago',
+};
 import { VISITOR_SHIFTS, shiftLabel, type VisitorShiftId } from '@/lib/visitor-shifts';
 
 const ARS = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
@@ -353,6 +363,7 @@ function SalesTab({ onNotice, onError }: TabProps) {
   const [date, setDate] = useState('');
   const [today, setToday] = useState('');
   const [movements, setMovements] = useState<StockMovement[]>([]);
+  const [memberships, setMemberships] = useState<DayMembership[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -361,10 +372,13 @@ function SalesTab({ onNotice, onError }: TabProps) {
       setLoading(true);
       try {
         const q = next ? `?date=${encodeURIComponent(next)}` : '';
-        const data = await api<{ date: string; today: string; movements: StockMovement[] }>(`/api/admin/stock/movements${q}`);
+        const data = await api<{ date: string; today: string; movements: StockMovement[]; memberships: DayMembership[] }>(
+          `/api/admin/stock/movements${q}`,
+        );
         setDate(data.date);
         setToday(data.today);
         setMovements(data.movements);
+        setMemberships(data.memberships ?? []);
       } catch (cause) {
         onError(cause);
       } finally {
@@ -384,8 +398,38 @@ function SalesTab({ onNotice, onError }: TabProps) {
 
   const byShift = VISITOR_SHIFTS.map((s) => {
     const items = valid.filter((m) => m.shiftId === s.id);
-    return { id: s.id as VisitorShiftId, units: items.reduce((n, m) => n + m.units, 0), total: items.reduce((n, m) => n + m.total, 0) };
+    const mem = memberships.filter((m) => m.shiftId === s.id);
+    const pres = mem.filter((m) => m.origin === 'presencial');
+    const onl = mem.filter((m) => m.origin === 'online');
+    return {
+      id: s.id as VisitorShiftId,
+      units: items.reduce((n, m) => n + m.units, 0),
+      total: items.reduce((n, m) => n + m.total, 0),
+      presPeople: pres.reduce((n, m) => n + m.quantity, 0),
+      presTotal: pres.reduce((n, m) => n + m.total, 0),
+      onlPeople: onl.reduce((n, m) => n + m.quantity, 0),
+      onlTotal: onl.reduce((n, m) => n + m.total, 0),
+    };
   });
+
+  const presencialByMethod = ['efectivo', 'transferencia', 'tarjeta'].map((method) => ({
+    method,
+    total: memberships.filter((m) => m.origin === 'presencial' && m.paymentMethod === method).reduce((n, m) => n + m.total, 0),
+  }));
+
+  const voidMembership = async (m: DayMembership) => {
+    if (!window.confirm(`¿Anular la membresía presencial ${m.code} (${m.quantity} pers., ${ARS.format(m.total)})? Libera el cupo.`)) return;
+    setBusy(m.id);
+    try {
+      await api(`/api/stock/memberships/${m.id}`, { method: 'DELETE' });
+      onNotice('Membresía anulada.');
+      await load(date);
+    } catch (cause) {
+      onError(cause);
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const byProduct = useMemo(() => {
     const map = new Map<string, { name: string; units: number; total: number }>();
@@ -399,6 +443,8 @@ function SalesTab({ onNotice, onError }: TabProps) {
   }, [valid]);
 
   const dayTotal = valid.reduce((n, m) => n + m.total, 0);
+  const dayPres = byShift.reduce((n, s) => n + s.presTotal, 0);
+  const dayOnl = byShift.reduce((n, s) => n + s.onlTotal, 0);
 
   const voidOne = async (m: StockMovement) => {
     if (!window.confirm(`¿Anular la venta de ${m.units} × ${m.productName} (${ARS.format(m.total)})? Las unidades vuelven al stock.`)) return;
@@ -425,7 +471,7 @@ function SalesTab({ onNotice, onError }: TabProps) {
           Actualizar
         </button>
         <p className="text-xs text-brand-brown/60 basis-full">
-          La jornada empieza 07:30: lo vendido en la Noche después de medianoche y en la Madrugada cuenta para el día en que empezó.
+          Las membresías online son por la fecha y turno de visita. La jornada empieza 07:30: lo vendido en la Noche después de medianoche y en la Madrugada cuenta para el día en que empezó.
         </p>
       </div>
 
@@ -437,16 +483,72 @@ function SalesTab({ onNotice, onError }: TabProps) {
             {byShift.map((s) => (
               <div key={s.id} className="bg-white border border-brand-brown/10 p-4">
                 <p className="text-[11px] uppercase tracking-[0.2em] text-brand-brown/60">{shiftLabel(s.id).split(' · ')[0]}</p>
-                <p className="font-display text-2xl text-brand-brown">{ARS.format(s.total)}</p>
-                <p className="text-xs text-brand-brown/60">{s.units} unidades</p>
+                <p className="font-display text-2xl text-brand-brown">{ARS.format(s.total + s.presTotal)}</p>
+                <p className="text-xs text-brand-brown/60">cobrado en el parque</p>
+                <dl className="mt-2 text-xs text-brand-brown/80 space-y-0.5">
+                  <div className="flex justify-between"><dt>Productos ({s.units})</dt><dd>{ARS.format(s.total)}</dd></div>
+                  <div className="flex justify-between"><dt>Memb. presenciales ({s.presPeople})</dt><dd>{ARS.format(s.presTotal)}</dd></div>
+                  <div className="flex justify-between text-sky-800"><dt>Memb. online ({s.onlPeople})</dt><dd>{ARS.format(s.onlTotal)}</dd></div>
+                </dl>
               </div>
             ))}
             <div className="bg-brand-brown text-brand-cream p-4">
               <p className="text-[11px] uppercase tracking-[0.2em] text-brand-gold">Total del día</p>
-              <p className="font-display text-2xl">{ARS.format(dayTotal)}</p>
-              <p className="text-xs opacity-70">{valid.reduce((n, m) => n + m.units, 0)} unidades</p>
+              <p className="font-display text-2xl">{ARS.format(dayTotal + dayPres + dayOnl)}</p>
+              <dl className="mt-2 text-xs opacity-80 space-y-0.5">
+                <div className="flex justify-between"><dt>Productos</dt><dd>{ARS.format(dayTotal)}</dd></div>
+                <div className="flex justify-between"><dt>Memb. presenciales</dt><dd>{ARS.format(dayPres)}</dd></div>
+                <div className="flex justify-between"><dt>Memb. online</dt><dd>{ARS.format(dayOnl)}</dd></div>
+              </dl>
             </div>
           </div>
+
+          <section className="bg-white border border-brand-brown/10 p-4">
+            <h3 className="text-[11px] uppercase tracking-[0.25em] text-brand-brown/60 mb-2">Membresías de la jornada</h3>
+            <p className="text-xs text-brand-brown/70 mb-3">
+              Presenciales por forma de pago:{' '}
+              {presencialByMethod.map((p) => `${PAYMENT_LABEL[p.method]} ${ARS.format(p.total)}`).join(' · ')}
+            </p>
+            {memberships.length === 0 ? (
+              <p className="text-sm text-brand-brown/60">No hay membresías en esta jornada.</p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead className="text-left text-xs text-brand-brown/60">
+                  <tr>
+                    <th className="py-1">Turno</th>
+                    <th>Origen</th>
+                    <th>Cliente</th>
+                    <th>Pago</th>
+                    <th>Cargó</th>
+                    <th className="text-right">Total</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {memberships.map((m) => (
+                    <tr key={m.id} className="border-t border-brand-brown/10">
+                      <td className="py-1.5">{shiftLabel(m.shiftId as VisitorShiftId).split(' · ')[0]}</td>
+                      <td>{m.origin === 'online' ? 'Online' : 'Presencial'}</td>
+                      <td>
+                        {m.quantity} × {m.name} <span className="text-xs text-brand-brown/60">{m.code}</span>
+                      </td>
+                      <td>{PAYMENT_LABEL[m.paymentMethod ?? ''] ?? m.paymentMethod}</td>
+                      <td>{m.soldBy ?? '—'}</td>
+                      <td className="text-right">{ARS.format(m.total)}</td>
+                      <td className="text-right">
+                        {m.origin === 'presencial' && (
+                          <button type="button" onClick={() => voidMembership(m)} disabled={busy === m.id} className="text-xs text-red-700 underline">
+                            Anular
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            <p className="mt-2 text-xs text-brand-brown/50">Las compras online se anulan o devuelven desde Turnos.</p>
+          </section>
 
           {byProduct.length > 0 && (
             <section className="bg-white border border-brand-brown/10 p-4">

@@ -4,12 +4,27 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { SITE } from '@/lib/constants';
 import { STOCK_CATEGORIES } from '@/lib/stock-shared';
+import type { ShiftMembership } from '@/lib/stock-memberships';
 import type { StockMovement, StockProduct } from '@/lib/stock-store';
 import { shiftLabel, type VisitorShiftId } from '@/lib/visitor-shifts';
 
 const ARS = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 const NAME_KEY = 'adc-stock-staff-name';
 const UNDO_MINUTES = 15;
+
+const PAYMENT_LABEL: Record<string, string> = {
+  efectivo: 'Efectivo',
+  transferencia: 'Transferencia',
+  tarjeta: 'Tarjeta',
+  mercadopago: 'Mercado Pago (online)',
+};
+
+type MembershipInfo = {
+  unitPrice: number;
+  maxPerSale: number;
+  remaining: number | null;
+  memberships: ShiftMembership[];
+};
 
 type Session = {
   viewer: 'admin' | 'staff' | null;
@@ -48,6 +63,10 @@ export default function StockStaff() {
   const [busy, setBusy] = useState<string | null>(null);
   const [units, setUnits] = useState<Record<string, number>>({});
   const [, forceTick] = useState(0);
+  const [mInfo, setMInfo] = useState<MembershipInfo | null>(null);
+  const [mQty, setMQty] = useState(1);
+  const [mPay, setMPay] = useState<string>('efectivo');
+  const [mName, setMName] = useState('');
 
   const loadSession = useCallback(async () => {
     try {
@@ -64,12 +83,14 @@ export default function StockStaff() {
 
   const loadData = useCallback(async () => {
     try {
-      const [p, s] = await Promise.all([
+      const [p, s, m] = await Promise.all([
         fetch('/api/stock/products', { cache: 'no-store' }).then((r) => r.json()),
         fetch('/api/stock/sales', { cache: 'no-store' }).then((r) => r.json()),
+        fetch('/api/stock/memberships', { cache: 'no-store' }).then((r) => r.json()),
       ]);
       if (p.ok) setProducts(p.products);
       if (s.ok) setSales(s.sales);
+      if (m.ok) setMInfo(m);
       if (!p.ok && p.error === 'No autorizado') void loadSession();
     } catch {
       // se reintenta en el próximo ciclo
@@ -182,6 +203,54 @@ export default function StockStaff() {
     }
   };
 
+  const sellMembership = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!staffName.trim()) {
+      setError('Escribí tu nombre arriba antes de cargar.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    setError(null);
+    setNotice(null);
+    setBusy('membership');
+    try {
+      const res = await fetch('/api/stock/memberships', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quantity: mQty, paymentMethod: mPay, name: mName, staffName: staffName.trim() }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'No se pudo cargar');
+      setNotice(
+        `Membresía cargada: ${mQty} persona${mQty > 1 ? 's' : ''} · ${PAYMENT_LABEL[mPay]} · ${ARS.format(data.membership.total)} · código ${data.membership.code}`,
+      );
+      setMQty(1);
+      setMName('');
+      await loadData();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No se pudo cargar');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const undoMembership = async (m: ShiftMembership) => {
+    if (!window.confirm(`¿Anular la membresía presencial de ${m.quantity} persona(s) (${ARS.format(m.total)})?`)) return;
+    setBusy(m.id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/stock/memberships/${m.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'No se pudo anular');
+      setNotice('Membresía anulada.');
+      await loadData();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No se pudo anular');
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return q ? products.filter((p) => p.name.toLowerCase().includes(q)) : products;
@@ -189,6 +258,11 @@ export default function StockStaff() {
 
   const activeSales = sales.filter((s) => !s.voided);
   const shiftTotal = activeSales.reduce((sum, s) => sum + s.total, 0);
+  const memberships = mInfo?.memberships ?? [];
+  const inPerson = memberships.filter((m) => m.origin === 'presencial');
+  const online = memberships.filter((m) => m.origin === 'online');
+  const inPersonTotal = inPerson.reduce((n, m) => n + m.total, 0);
+  const people = (list: ShiftMembership[]) => list.reduce((n, m) => n + m.quantity, 0);
   const lowStock = products.filter((p) => p.quantity !== null && p.quantity <= p.lowAlert);
 
   /* ------------------------------ Pantallas ------------------------------ */
@@ -277,10 +351,123 @@ export default function StockStaff() {
               className="mt-1 w-full border border-brand-brown/20 px-3 py-2 text-base normal-case tracking-normal text-brand-dark"
             />
           </label>
-          <div className="flex items-baseline justify-between">
-            <span className="text-sm text-brand-brown/70">Vendido en este turno</span>
-            <span className="font-display text-2xl text-brand-brown">{ARS.format(shiftTotal)}</span>
+          <dl className="text-sm space-y-1">
+            <div className="flex justify-between">
+              <dt className="text-brand-brown/70">Productos</dt>
+              <dd>{ARS.format(shiftTotal)}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-brand-brown/70">Membresías presenciales ({people(inPerson)})</dt>
+              <dd>{ARS.format(inPersonTotal)}</dd>
+            </div>
+            <div className="flex items-baseline justify-between border-t border-brand-brown/10 pt-2">
+              <dt className="text-brand-brown/80">Cobrado en el parque este turno</dt>
+              <dd className="font-display text-2xl text-brand-brown">{ARS.format(shiftTotal + inPersonTotal)}</dd>
+            </div>
+            <div className="flex justify-between text-xs text-brand-brown/60">
+              <dt>Membresías online (ya pagadas por Mercado Pago)</dt>
+              <dd>
+                {people(online)} pers. · {ARS.format(online.reduce((n, m) => n + m.total, 0))}
+              </dd>
+            </div>
+          </dl>
+        </section>
+
+        <section className="bg-white border border-brand-brown/10 p-4 space-y-4">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="text-[11px] uppercase tracking-[0.25em] text-brand-brown/60">Membresías del turno</h2>
+            {mInfo?.remaining !== null && mInfo?.remaining !== undefined && (
+              <span className="text-xs text-brand-brown/60">Cupo libre: {mInfo.remaining}</span>
+            )}
           </div>
+
+          <form onSubmit={sellMembership} className="space-y-3 bg-brand-cream/50 p-3">
+            <p className="text-sm text-brand-dark">
+              Cargar venta presencial · {mInfo ? ARS.format(mInfo.unitPrice) : '…'} por persona
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center border border-brand-brown/20 bg-white">
+                <button type="button" aria-label="Menos" onClick={() => setMQty((q) => Math.max(1, q - 1))} className="w-10 h-10 text-lg text-brand-brown">
+                  −
+                </button>
+                <span className="w-10 text-center">{mQty}</span>
+                <button
+                  type="button"
+                  aria-label="Más"
+                  onClick={() => setMQty((q) => Math.min(mInfo?.maxPerSale ?? 20, q + 1))}
+                  className="w-10 h-10 text-lg text-brand-brown"
+                >
+                  +
+                </button>
+              </div>
+              <span className="text-sm text-brand-brown/70">persona{mQty > 1 ? 's' : ''}</span>
+              <span className="ml-auto font-display text-xl text-brand-brown">
+                {mInfo ? ARS.format(mInfo.unitPrice * mQty) : ''}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {(['efectivo', 'transferencia', 'tarjeta'] as const).map((method) => (
+                <button
+                  key={method}
+                  type="button"
+                  onClick={() => setMPay(method)}
+                  className={`px-3 py-2 text-xs uppercase tracking-[0.1em] border ${
+                    mPay === method ? 'bg-brand-brown text-brand-cream border-brand-brown' : 'bg-white border-brand-brown/20 text-brand-brown'
+                  }`}
+                >
+                  {PAYMENT_LABEL[method]}
+                </button>
+              ))}
+            </div>
+            <input
+              value={mName}
+              onChange={(e) => setMName(e.target.value.slice(0, 80))}
+              placeholder="Nombre del cliente (opcional)"
+              className="w-full border border-brand-brown/20 bg-white px-3 py-2 text-base"
+            />
+            <button
+              type="submit"
+              disabled={busy === 'membership' || !mInfo}
+              className="w-full bg-brand-brown text-brand-cream py-3 text-xs uppercase tracking-[0.15em] disabled:opacity-50"
+            >
+              {busy === 'membership' ? 'Cargando…' : 'Cargar membresía'}
+            </button>
+          </form>
+
+          {memberships.length === 0 ? (
+            <p className="text-sm text-brand-brown/60">Todavía no hay membresías en este turno.</p>
+          ) : (
+            <ul className="divide-y divide-brand-brown/10">
+              {memberships.map((m) => {
+                const ageMin = (Date.now() - new Date(m.createdAt).getTime()) / 60000;
+                const canUndo = m.origin === 'presencial' && (session.viewer === 'admin' || ageMin <= UNDO_MINUTES);
+                return (
+                  <li key={m.id} className="py-2 flex items-center gap-3 text-sm">
+                    <span
+                      className={`px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] ${
+                        m.origin === 'online' ? 'bg-sky-100 text-sky-800' : 'bg-amber-100 text-amber-900'
+                      }`}
+                    >
+                      {m.origin === 'online' ? 'Online' : 'Presencial'}
+                    </span>
+                    <span className="flex-1">
+                      {m.quantity} × {m.name}
+                      <span className="block text-xs text-brand-brown/60">
+                        {m.code} · {PAYMENT_LABEL[m.paymentMethod ?? ''] ?? m.paymentMethod}
+                        {m.soldBy ? ` · ${m.soldBy}` : ''}
+                      </span>
+                    </span>
+                    <span>{ARS.format(m.total)}</span>
+                    {canUndo && (
+                      <button type="button" onClick={() => undoMembership(m)} disabled={busy === m.id} className="text-xs text-red-700 underline">
+                        Anular
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </section>
 
         {lowStock.length > 0 && (
@@ -354,7 +541,7 @@ export default function StockStaff() {
         {filtered.length === 0 && <p className="text-center text-brand-brown/60">No hay productos.</p>}
 
         <section className="bg-white border border-brand-brown/10 p-4">
-          <h2 className="text-[11px] uppercase tracking-[0.25em] text-brand-brown/60 mb-3">Ventas de este turno</h2>
+          <h2 className="text-[11px] uppercase tracking-[0.25em] text-brand-brown/60 mb-3">Ventas de productos de este turno</h2>
           {sales.length === 0 ? (
             <p className="text-sm text-brand-brown/60">Todavía no hay ventas.</p>
           ) : (

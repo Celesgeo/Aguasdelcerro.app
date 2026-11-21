@@ -40,6 +40,10 @@ export interface Reservation {
   rescheduleCount: number;
   refundedAt: string | null;
   mpRefundId: string | null;
+  /** 'presencial' si la cargó el personal en el parque; null = compra online */
+  saleOrigin: string | null;
+  paymentMethod: string | null;
+  soldBy: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -73,6 +77,9 @@ interface ReservationRow {
   reschedule_count: number;
   refunded_at: Date | null;
   mp_refund_id: string | null;
+  sale_origin?: string | null;
+  payment_method?: string | null;
+  sold_by?: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -102,6 +109,9 @@ function toReservation(row: ReservationRow): Reservation {
     rescheduleCount: row.reschedule_count,
     refundedAt: iso(row.refunded_at),
     mpRefundId: row.mp_refund_id,
+    saleOrigin: row.sale_origin ?? null,
+    paymentMethod: row.payment_method ?? null,
+    soldBy: row.sold_by ?? null,
     createdAt: new Date(row.created_at).toISOString(),
     updatedAt: new Date(row.updated_at).toISOString(),
   };
@@ -432,4 +442,97 @@ export async function listRefundedForDate(date: string): Promise<Reservation[]> 
     [date],
   );
   return rows.map(toReservation);
+}
+
+/* ------------------------------------------------------------------ */
+/* Ventas presenciales (cargadas por el personal en /stock)            */
+/* ------------------------------------------------------------------ */
+
+export const IN_PERSON_PAYMENT_METHODS = ['efectivo', 'transferencia', 'tarjeta'] as const;
+export type InPersonPaymentMethod = (typeof IN_PERSON_PAYMENT_METHODS)[number];
+
+export function isInPersonPaymentMethod(value: string): value is InPersonPaymentMethod {
+  return (IN_PERSON_PAYMENT_METHODS as readonly string[]).includes(value);
+}
+
+/**
+ * Registra membresías vendidas en el parque para el turno en curso. Quedan pagadas,
+ * ocupan cupo del turno y aparecen en el panel de Turnos (sin devolución por Mercado Pago).
+ */
+export async function createInPersonSale(input: {
+  date: string;
+  shiftId: VisitorShiftId;
+  quantity: number;
+  name: string;
+  phone?: string;
+  paymentMethod: InPersonPaymentMethod;
+  soldBy: string;
+}): Promise<Reservation> {
+  const quantity = Math.floor(input.quantity);
+  if (!Number.isFinite(quantity) || quantity < 1 || quantity > VISITOR_SHIFT_MAX_PER_PURCHASE) {
+    throw new ReservationError('invalid');
+  }
+
+  return transaction(async (client) => {
+    await lockSlot(client, input.date, input.shiftId);
+    const sold = (await occupiedByShift(input.date, client)).get(input.shiftId) ?? 0;
+    if (sold + quantity > VISITOR_SHIFT_CAPACITY) {
+      throw new ReservationError(sold >= VISITOR_SHIFT_CAPACITY ? 'sold_out' : 'insufficient');
+    }
+
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const { rows } = await client.query<ReservationRow>(
+        `INSERT INTO reservations
+          (id, code, visit_date, shift_id, quantity, unit_price, total, customer_name, customer_email, customer_phone,
+           status, paid_at, sale_origin, payment_method, sold_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'',$9,'paid',now(),'presencial',$10,$11)
+         ON CONFLICT (code) DO NOTHING
+         RETURNING *`,
+        [
+          randomUUID(),
+          generateCode(),
+          input.date,
+          input.shiftId,
+          quantity,
+          TICKET_PRICE_ARS,
+          TICKET_PRICE_ARS * quantity,
+          input.name.trim() || 'Venta presencial',
+          input.phone?.trim() || null,
+          input.paymentMethod,
+          input.soldBy,
+        ],
+      );
+      if (rows[0]) return toReservation(rows[0]);
+    }
+    throw new Error('No se pudo generar un código único');
+  });
+}
+
+/** Membresías pagadas (online y presenciales) de un día y, opcionalmente, un turno. */
+export async function listPaidMemberships(date: string, shiftId?: VisitorShiftId): Promise<Reservation[]> {
+  const rows = await query<ReservationRow>(
+    `SELECT * FROM reservations
+      WHERE visit_date = $1 AND status = 'paid' ${shiftId ? 'AND shift_id = $2' : ''}
+      ORDER BY created_at DESC`,
+    shiftId ? [date, shiftId] : [date],
+  );
+  return rows.map(toReservation);
+}
+
+/** Anula una venta presencial (devuelve el lugar al cupo). Solo presenciales: las online se manejan en Turnos. */
+export async function voidInPersonSale(id: string, maxAgeMinutes?: number): Promise<'ok' | 'not_found' | 'too_late'> {
+  const rows = await query<{ id: string; created_at: Date }>(
+    `SELECT id, created_at FROM reservations WHERE id = $1 AND sale_origin = 'presencial' AND status = 'paid'`,
+    [id],
+  );
+  const row = rows[0];
+  if (!row) return 'not_found';
+  if (maxAgeMinutes !== undefined && Date.now() - new Date(row.created_at).getTime() > maxAgeMinutes * 60_000) {
+    return 'too_late';
+  }
+  await query(
+    `UPDATE reservations SET status = 'cancelled', updated_at = now() WHERE id = $1 AND status = 'paid'`,
+    [id],
+  );
+  return 'ok';
 }

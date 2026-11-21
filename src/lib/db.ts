@@ -70,6 +70,10 @@ CREATE INDEX IF NOT EXISTS reservations_email_idx ON reservations (lower(custome
 ALTER TABLE reservations ADD COLUMN IF NOT EXISTS refunded_at TIMESTAMPTZ;
 ALTER TABLE reservations ADD COLUMN IF NOT EXISTS mp_refund_id TEXT;
 ALTER TABLE reservations ADD COLUMN IF NOT EXISTS refund_origin TEXT;
+-- Venta presencial (cargada por el personal en /stock): sale_origin = 'presencial'.
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS sale_origin TEXT;
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS payment_method TEXT;
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS sold_by TEXT;
 
 -- Solicitudes del "Botón de arrepentimiento" y "Botón de baja de servicio" (Disp. 954/2025).
 CREATE TABLE IF NOT EXISTS cancellation_requests (

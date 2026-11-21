@@ -168,7 +168,10 @@ export default function AdminShifts() {
                   {ARS.format(reservation.total)}
                 </p>
                 <p className="mt-1 text-brand-dark/60">
-                  {SHIFT_NAME(reservation.shiftId)} · {reservation.email}
+                  {SHIFT_NAME(reservation.shiftId)} ·{' '}
+                  {reservation.saleOrigin === 'presencial'
+                    ? `Venta presencial · ${reservation.paymentMethod ?? ''}${reservation.soldBy ? ` · cargó ${reservation.soldBy}` : ''}`
+                    : reservation.email}
                   {reservation.phone ? ` · ${reservation.phone}` : ''}
                 </p>
                 <p className="mt-1 text-xs tracking-[0.14em] uppercase">
@@ -183,7 +186,7 @@ export default function AdminShifts() {
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-4">
-                {reservation.status === 'paid' ? (
+                {reservation.status === 'paid' && reservation.saleOrigin !== 'presencial' ? (
                   <button
                     type="button"
                     disabled={busyId === reservation.id}

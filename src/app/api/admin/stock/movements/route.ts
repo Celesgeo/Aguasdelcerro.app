@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { listPaidMemberships } from '@/lib/reservations';
 import { stockViewer } from '@/lib/stock-auth';
+import { toShiftMembership } from '@/lib/stock-memberships';
 import { currentBusinessDate, currentShiftId, listMovements } from '@/lib/stock-store';
 import { isValidDateISO } from '@/lib/security';
 
@@ -14,13 +16,17 @@ export async function GET(request: NextRequest) {
   const requested = request.nextUrl.searchParams.get('date') ?? '';
   const date = isValidDateISO(requested) ? requested : currentBusinessDate();
   try {
-    const movements = await listMovements({ businessDate: date });
+    const [movements, memberships] = await Promise.all([
+      listMovements({ businessDate: date }),
+      listPaidMemberships(date),
+    ]);
     return NextResponse.json({
       ok: true,
       date,
       today: currentBusinessDate(),
       currentShiftId: currentShiftId(),
       movements,
+      memberships: memberships.map((r) => ({ ...toShiftMembership(r), shiftId: r.shiftId })),
     });
   } catch {
     return NextResponse.json({ ok: false, error: 'No se pudieron cargar los movimientos' }, { status: 500 });
