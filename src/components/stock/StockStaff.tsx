@@ -19,6 +19,13 @@ const PAYMENT_LABEL: Record<string, string> = {
   mercadopago: 'Mercado Pago (online)',
 };
 
+type AttendanceInfo = {
+  enabled: boolean;
+  todayIsWorkday?: boolean;
+  total?: number;
+  days: { date: string; label: string; present: boolean; isToday: boolean }[];
+};
+
 type MembershipInfo = {
   unitPrice: number;
   maxPerSale: number;
@@ -30,6 +37,8 @@ type Session = {
   viewer: 'admin' | 'staff' | null;
   pinConfigured: boolean;
   staffName: string;
+  sellerId: string | null;
+  sellers: { id: string; name: string }[];
   shiftId: VisitorShiftId;
   businessDate: string;
 };
@@ -70,6 +79,7 @@ export default function StockStaff() {
   const [mQty, setMQty] = useState(1);
   const [mPay, setMPay] = useState<string>('efectivo');
   const [mName, setMName] = useState('');
+  const [attendance, setAttendance] = useState<AttendanceInfo | null>(null);
 
   const loadSession = useCallback(async () => {
     try {
@@ -77,7 +87,7 @@ export default function StockStaff() {
       const data = await res.json();
       if (!data.ok) throw new Error(data.error);
       setSession(data);
-      if (data.staffName) setStaffName(data.staffName);
+      setStaffName(data.staffName || '');
       return data as Session;
     } catch {
       setError('No se pudo conectar. Revisá internet y recargá la página.');
@@ -87,14 +97,16 @@ export default function StockStaff() {
 
   const loadData = useCallback(async () => {
     try {
-      const [p, s, m] = await Promise.all([
+      const [p, s, m, a] = await Promise.all([
         fetch('/api/stock/products', { cache: 'no-store' }).then((r) => r.json()),
         fetch('/api/stock/sales', { cache: 'no-store' }).then((r) => r.json()),
         fetch('/api/stock/memberships', { cache: 'no-store' }).then((r) => r.json()),
+        fetch('/api/stock/attendance', { cache: 'no-store' }).then((r) => r.json()),
       ]);
       if (p.ok) setProducts(p.products);
       if (s.ok) setSales(s.sales);
       if (m.ok) setMInfo(m);
+      if (a.ok) setAttendance(a);
       if (!p.ok && p.error === 'No autorizado') void loadSession();
     } catch {
       // se reintenta en el próximo ciclo
@@ -102,11 +114,6 @@ export default function StockStaff() {
   }, [loadSession]);
 
   useEffect(() => {
-    try {
-      setStaffName(localStorage.getItem(NAME_KEY) ?? '');
-    } catch {
-      // sin localStorage: se pide el nombre cada vez
-    }
     void loadSession().then((s) => {
       if (s?.viewer) void loadData();
     });
@@ -136,13 +143,14 @@ export default function StockStaff() {
     e.preventDefault();
     const value = nameDraft.trim();
     if (!value) return;
+    const fromList = (session?.sellers.length ?? 0) > 0;
     setBusy('name');
     setError(null);
     try {
       const res = await fetch('/api/stock/session', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ staffName: value }),
+        body: JSON.stringify(fromList ? { sellerId: value } : { staffName: value }),
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || 'No se pudo guardar el nombre');
@@ -150,6 +158,8 @@ export default function StockStaff() {
       rememberLocally(data.staffName);
       setEditingName(false);
       setNotice(`Listo, ahora atiende ${data.staffName}.`);
+      await loadSession();
+      await loadData();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'No se pudo guardar el nombre');
     } finally {
@@ -165,13 +175,12 @@ export default function StockStaff() {
       const res = await fetch('/api/stock/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin, staffName: staffName.trim() }),
+        body: JSON.stringify({ pin }),
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || 'Clave incorrecta');
       setPin('');
-      setStaffName(data.staffName);
-      rememberLocally(data.staffName);
+      setNameDraft('');
       const s = await loadSession();
       if (s?.viewer) await loadData();
     } catch (cause) {
@@ -212,6 +221,50 @@ export default function StockStaff() {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'No se pudo registrar');
       void loadData();
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const giveBack = async (product: StockProduct) => {
+    const qty = units[product.id] ?? 1;
+    if (!window.confirm(`¿Devolvieron ${qty} ${product.name}? Vuelve${qty > 1 ? 'n' : ''} al stock.`)) return;
+    setError(null);
+    setNotice(null);
+    setBusy(`ret:${product.id}`);
+    try {
+      const res = await fetch('/api/stock/returns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId: product.id, units: qty, staffName }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'No se pudo registrar la devolución');
+      setNotice(`Devolución registrada: ${qty} × ${product.name}. Disponibles: ${data.product.quantity}.`);
+      setUnits((u) => ({ ...u, [product.id]: 1 }));
+      await loadData();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No se pudo registrar la devolución');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const toggleAttendance = async (present: boolean) => {
+    setBusy('attendance');
+    setError(null);
+    try {
+      const res = await fetch('/api/stock/attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ present }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'No se pudo guardar la asistencia');
+      setNotice(present ? 'Asistencia de hoy marcada.' : 'Asistencia de hoy desmarcada.');
+      await loadData();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No se pudo guardar la asistencia');
     } finally {
       setBusy(null);
     }
@@ -343,16 +396,6 @@ export default function StockStaff() {
               El administrador todavía no definió la clave. Se carga desde el panel de administración → Stock.
             </p>
           )}
-          <label className="block text-xs uppercase tracking-[0.15em] text-brand-brown/70 font-body">
-            Tu nombre
-            <input
-              value={staffName}
-              onChange={(e) => setStaffName(e.target.value.slice(0, 60))}
-              placeholder="Ej.: Sofía"
-              autoComplete="name"
-              className="mt-1 w-full border border-brand-brown/20 bg-white px-4 py-3 text-lg normal-case tracking-normal text-brand-dark"
-            />
-          </label>
           <input
             type="password"
             autoComplete="off"
@@ -368,7 +411,7 @@ export default function StockStaff() {
           {error && <p className="text-sm text-red-700 font-body">{error}</p>}
           <button
             type="submit"
-            disabled={busy === 'login' || pin.length < 6 || !staffName.trim()}
+            disabled={busy === 'login' || pin.length < 6}
             className="w-full bg-brand-brown text-brand-cream py-3 font-body tracking-[0.15em] uppercase text-sm disabled:opacity-50"
           >
             {busy === 'login' ? 'Ingresando…' : 'Ingresar'}
@@ -383,17 +426,32 @@ export default function StockStaff() {
       {header}
       <main className="mx-auto max-w-3xl px-4 py-5 space-y-5 font-body">
         <section className="bg-white border border-brand-brown/10 p-4 space-y-3">
-          {editingName || !staffName ? (
+          {editingName || !staffName || (session.sellers.length > 0 && !session.sellerId) ? (
             <form onSubmit={saveName} className="flex gap-2 items-end">
               <label className="flex-1 block text-xs uppercase tracking-[0.15em] text-brand-brown/70">
-                Quién atiende
-                <input
-                  value={nameDraft}
-                  onChange={(e) => setNameDraft(e.target.value.slice(0, 60))}
-                  placeholder="Ej.: Sofía"
-                  autoFocus
-                  className="mt-1 w-full border border-brand-brown/20 px-3 py-2 text-base normal-case tracking-normal text-brand-dark"
-                />
+                ¿Quién atiende?
+                {session.sellers.length > 0 ? (
+                  <select
+                    value={nameDraft}
+                    onChange={(e) => setNameDraft(e.target.value)}
+                    className="mt-1 w-full border border-brand-brown/20 bg-white px-3 py-2 text-base normal-case tracking-normal text-brand-dark"
+                  >
+                    <option value="">Elegí tu nombre…</option>
+                    {session.sellers.map((seller) => (
+                      <option key={seller.id} value={seller.id}>
+                        {seller.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    value={nameDraft}
+                    onChange={(e) => setNameDraft(e.target.value.slice(0, 60))}
+                    placeholder="Ej.: Sofía"
+                    autoFocus
+                    className="mt-1 w-full border border-brand-brown/20 px-3 py-2 text-base normal-case tracking-normal text-brand-dark"
+                  />
+                )}
               </label>
               <button
                 type="submit"
@@ -411,7 +469,7 @@ export default function StockStaff() {
               <button
                 type="button"
                 onClick={() => {
-                  setNameDraft(staffName);
+                  setNameDraft(session.sellers.length > 0 ? '' : staffName);
                   setEditingName(true);
                 }}
                 className="text-xs uppercase tracking-[0.15em] text-brand-brown underline"
@@ -441,6 +499,44 @@ export default function StockStaff() {
             </div>
           </dl>
         </section>
+
+        {attendance?.enabled && attendance.days.length > 0 && (
+          <section className="bg-white border border-brand-brown/10 p-4 space-y-3">
+            <div className="flex items-baseline justify-between gap-3">
+              <h2 className="text-[11px] uppercase tracking-[0.25em] text-brand-brown/60">Mi asistencia · {staffName}</h2>
+              <span className="text-xs text-brand-brown/70">
+                {attendance.total} de 5 días esta semana
+              </span>
+            </div>
+            <div className="grid grid-cols-5 gap-2">
+              {attendance.days.map((d) => (
+                <button
+                  key={d.date}
+                  type="button"
+                  disabled={!d.isToday || busy === 'attendance'}
+                  onClick={() => toggleAttendance(!d.present)}
+                  className={`flex flex-col items-center gap-1 border p-2 text-[11px] ${
+                    d.isToday ? 'border-brand-brown' : 'border-brand-brown/15'
+                  } ${d.isToday ? '' : 'opacity-60'}`}
+                >
+                  <span className="leading-tight text-center">{d.label}</span>
+                  <span
+                    className={`w-8 h-8 flex items-center justify-center border text-base ${
+                      d.present ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white border-brand-brown/30 text-transparent'
+                    }`}
+                  >
+                    ✓
+                  </span>
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-brand-brown/60">
+              {attendance.todayIsWorkday
+                ? 'Solo se puede tildar el día de hoy. Si te olvidaste otro día, avisale al administrador.'
+                : 'La asistencia se marca de lunes a viernes.'}
+            </p>
+          </section>
+        )}
 
         <section className="bg-white border border-brand-brown/10 p-4 space-y-4">
           <div className="flex items-baseline justify-between gap-3">
@@ -564,9 +660,9 @@ export default function StockStaff() {
                 const qty = units[p.id] ?? 1;
                 const soldOut = p.quantity === 0;
                 const noPrice = p.unitPrice <= 0;
-                const maxUnits = p.quantity === null ? 50 : Math.min(50, p.quantity);
+                const maxUnits = p.quantity === null || p.isRental ? 50 : Math.min(50, p.quantity);
                 return (
-                  <li key={p.id} className="bg-white border border-brand-brown/10 p-3 flex items-center gap-3">
+                  <li key={p.id} className="bg-white border border-brand-brown/10 p-3 flex flex-wrap items-center gap-3">
                     <div className="flex-1 min-w-0">
                       <p className="text-brand-dark font-medium leading-tight">{p.name}</p>
                       <div className="mt-1 flex items-center gap-2 text-sm">
@@ -599,8 +695,18 @@ export default function StockStaff() {
                       disabled={soldOut || noPrice || busy === p.id}
                       className="bg-brand-brown text-brand-cream px-4 h-10 text-xs uppercase tracking-[0.15em] disabled:opacity-40"
                     >
-                      {busy === p.id ? '…' : 'Vender'}
+                      {busy === p.id ? '…' : p.isRental ? 'Alquilar' : 'Vender'}
                     </button>
+                    {p.isRental && (
+                      <button
+                        type="button"
+                        onClick={() => giveBack(p)}
+                        disabled={busy === `ret:${p.id}`}
+                        className="w-full border border-emerald-700/40 text-emerald-800 h-10 text-xs uppercase tracking-[0.15em] disabled:opacity-40"
+                      >
+                        {busy === `ret:${p.id}` ? '…' : `Devolvieron ${qty}`}
+                      </button>
+                    )}
                   </li>
                 );
               })}

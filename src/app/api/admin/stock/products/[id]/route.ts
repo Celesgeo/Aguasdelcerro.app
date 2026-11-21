@@ -66,6 +66,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
       update.lowAlert = lowAlert;
     }
     if (body?.active !== undefined) update.active = Boolean(body.active);
+    if (body?.isRental !== undefined) update.isRental = body?.tracked !== false && Boolean(body.isRental);
 
     const product = await updateProduct(id, update);
     if (!product) return NextResponse.json({ ok: false, error: 'Producto no encontrado' }, { status: 404 });

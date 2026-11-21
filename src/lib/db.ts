@@ -154,6 +154,28 @@ CREATE TABLE IF NOT EXISTS stock_movements (
 );
 CREATE INDEX IF NOT EXISTS stock_movements_day_idx ON stock_movements (business_date, shift_id, created_at DESC);
 
+ALTER TABLE stock_products ADD COLUMN IF NOT EXISTS is_rental BOOLEAN NOT NULL DEFAULT false;
+
+-- Vendedores (los carga el administrador) y su asistencia diaria (lunes a viernes).
+CREATE TABLE IF NOT EXISTS stock_sellers (
+  id UUID PRIMARY KEY,
+  name TEXT NOT NULL,
+  active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS stock_sellers_name_idx ON stock_sellers (lower(name));
+
+CREATE TABLE IF NOT EXISTS stock_attendance (
+  id UUID PRIMARY KEY,
+  seller_id UUID NOT NULL REFERENCES stock_sellers(id) ON DELETE CASCADE,
+  work_date TEXT NOT NULL,
+  shift_id TEXT,
+  marked_by TEXT NOT NULL DEFAULT 'staff',
+  marked_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (seller_id, work_date)
+);
+CREATE INDEX IF NOT EXISTS stock_attendance_date_idx ON stock_attendance (work_date);
+
 CREATE TABLE IF NOT EXISTS stock_settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL,

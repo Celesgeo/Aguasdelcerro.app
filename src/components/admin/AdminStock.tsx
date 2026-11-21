@@ -19,7 +19,7 @@ import { VISITOR_SHIFTS, shiftLabel, type VisitorShiftId } from '@/lib/visitor-s
 
 const ARS = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 
-type Tab = 'productos' | 'ventas' | 'clave';
+type Tab = 'productos' | 'ventas' | 'equipo' | 'clave';
 
 type Draft = {
   name: string;
@@ -28,9 +28,18 @@ type Draft = {
   tracked: boolean;
   quantity: string;
   lowAlert: string;
+  isRental: boolean;
 };
 
-const EMPTY_DRAFT: Draft = { name: '', category: 'Bebidas', unitPrice: '', tracked: true, quantity: '0', lowAlert: '2' };
+const EMPTY_DRAFT: Draft = {
+  name: '',
+  category: 'Bebidas',
+  unitPrice: '',
+  tracked: true,
+  quantity: '0',
+  lowAlert: '2',
+  isRental: false,
+};
 
 const input = 'border border-brand-brown/20 bg-white px-3 py-2 text-sm font-body w-full';
 const btn = 'text-xs tracking-[0.15em] uppercase px-3 py-2 font-body disabled:opacity-40';
@@ -67,6 +76,7 @@ export default function AdminStock() {
           [
             ['productos', 'Productos y stock'],
             ['ventas', 'Ventas por turno'],
+            ['equipo', 'Vendedores y asistencia'],
             ['clave', 'Clave del personal'],
           ] as const
         ).map(([id, label]) => (
@@ -89,6 +99,7 @@ export default function AdminStock() {
 
       {tab === 'productos' && <ProductsTab onNotice={flash} onError={fail} />}
       {tab === 'ventas' && <SalesTab onNotice={flash} onError={fail} />}
+      {tab === 'equipo' && <TeamTab onNotice={flash} onError={fail} />}
       {tab === 'clave' && <PinTab onNotice={flash} onError={fail} />}
     </AdminShell>
   );
@@ -130,6 +141,7 @@ function ProductsTab({ onNotice, onError }: TabProps) {
     tracked: d.tracked,
     quantity: d.tracked ? Number(d.quantity || 0) : undefined,
     lowAlert: Number(d.lowAlert || 0),
+    isRental: d.tracked && d.isRental,
   });
 
   const create = async (e: FormEvent) => {
@@ -156,6 +168,7 @@ function ProductsTab({ onNotice, onError }: TabProps) {
       tracked: p.quantity !== null,
       quantity: String(p.quantity ?? 0),
       lowAlert: String(p.lowAlert),
+      isRental: p.isRental,
     });
   };
 
@@ -262,7 +275,10 @@ function ProductsTab({ onNotice, onError }: TabProps) {
               ) : (
                 <div key={p.id} className={`p-3 flex flex-wrap items-center gap-3 font-body ${p.active ? '' : 'opacity-50'}`}>
                   <div className="flex-1 min-w-[180px]">
-                    <p className="text-brand-dark">{p.name}</p>
+                    <p className="text-brand-dark">
+                      {p.name}
+                      {p.isRental && <span className="ml-2 px-1.5 py-0.5 text-[10px] uppercase bg-sky-100 text-sky-800">Alquiler</span>}
+                    </p>
                     <p className="text-sm text-brand-brown/80">
                       {p.unitPrice > 0 ? ARS.format(p.unitPrice) : <span className="text-red-700">Sin precio</span>}
                     </p>
@@ -350,6 +366,10 @@ function DraftFields({ draft, onChange }: { draft: Draft; onChange: (d: Draft) =
           <label className="block">
             Avisar cuando queden
             <input className={input} type="number" min={0} value={draft.lowAlert} onChange={(e) => set({ lowAlert: e.target.value })} />
+          </label>
+          <label className="flex items-center gap-2 sm:col-span-2 lg:col-span-3">
+            <input type="checkbox" checked={draft.isRental} onChange={(e) => set({ isRental: e.target.checked })} />
+            Es de alquiler (como las batas): al devolverla vuelve al stock.
           </label>
         </>
       )}
@@ -681,5 +701,208 @@ function PinTab({ onNotice, onError }: TabProps) {
         {busy ? 'Guardando…' : configured ? 'Cambiar clave' : 'Guardar clave'}
       </button>
     </form>
+  );
+}
+
+/* ============================== Vendedores y asistencia ============================== */
+
+type Seller = { id: string; name: string; active: boolean };
+type AttendanceRow = {
+  id: string;
+  name: string;
+  active: boolean;
+  total: number;
+  days: { date: string; present: boolean; markedAt: string | null; markedBy: string | null }[];
+};
+
+function TeamTab({ onNotice, onError }: TabProps) {
+  const [sellers, setSellers] = useState<Seller[]>([]);
+  const [newName, setNewName] = useState('');
+  const [date, setDate] = useState('');
+  const [today, setToday] = useState('');
+  const [week, setWeek] = useState<{ date: string; label: string }[]>([]);
+  const [rows, setRows] = useState<AttendanceRow[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const loadSellers = useCallback(async () => {
+    try {
+      const data = await api<{ sellers: Seller[] }>('/api/admin/stock/sellers');
+      setSellers(data.sellers);
+    } catch (cause) {
+      onError(cause);
+    }
+  }, [onError]);
+
+  const loadWeek = useCallback(
+    async (next?: string) => {
+      try {
+        const q = next ? `?date=${encodeURIComponent(next)}` : '';
+        const data = await api<{ today: string; week: { date: string; label: string }[]; rows: AttendanceRow[] }>(
+          `/api/admin/stock/attendance${q}`,
+        );
+        setToday(data.today);
+        setDate(next ?? data.today);
+        setWeek(data.week);
+        setRows(data.rows);
+      } catch (cause) {
+        onError(cause);
+      }
+    },
+    [onError],
+  );
+
+  useEffect(() => {
+    void loadSellers();
+    void loadWeek();
+  }, [loadSellers, loadWeek]);
+
+  const shiftWeek = (days: number) => {
+    if (!date) return;
+    const d = new Date(`${date}T12:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + days);
+    void loadWeek(d.toISOString().slice(0, 10));
+  };
+
+  const add = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy('add');
+    try {
+      await api('/api/admin/stock/sellers', { method: 'POST', body: JSON.stringify({ name: newName }) });
+      onNotice(`${newName.trim()} agregado.`);
+      setNewName('');
+      await Promise.all([loadSellers(), loadWeek(date)]);
+    } catch (cause) {
+      onError(cause);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const toggleSeller = async (s: Seller) => {
+    if (s.active && !window.confirm(`¿Dar de baja a ${s.name}? No va a aparecer más en la lista (su asistencia queda guardada).`)) return;
+    setBusy(s.id);
+    try {
+      await api(`/api/admin/stock/sellers/${s.id}`, { method: 'PATCH', body: JSON.stringify({ active: !s.active }) });
+      await Promise.all([loadSellers(), loadWeek(date)]);
+    } catch (cause) {
+      onError(cause);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const toggleDay = async (row: AttendanceRow, day: AttendanceRow['days'][number]) => {
+    setBusy(`${row.id}:${day.date}`);
+    try {
+      await api('/api/admin/stock/attendance', {
+        method: 'PUT',
+        body: JSON.stringify({ sellerId: row.id, date: day.date, present: !day.present }),
+      });
+      await loadWeek(date);
+    } catch (cause) {
+      onError(cause);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div className="space-y-8 font-body">
+      <section className="bg-white border border-brand-brown/10 p-5 space-y-4">
+        <h2 className="font-display text-xl text-brand-brown">Vendedores</h2>
+        <p className="text-sm text-brand-brown/70">
+          Al entrar a /stock, cada empleado elige su nombre de esta lista. Así las ventas y la asistencia quedan a su nombre.
+        </p>
+        <form onSubmit={add} className="flex gap-2 max-w-md">
+          <input className={input} value={newName} onChange={(e) => setNewName(e.target.value.slice(0, 60))} placeholder="Nombre y apellido" />
+          <button type="submit" disabled={busy === 'add' || !newName.trim()} className={`${btn} bg-brand-brown text-brand-cream whitespace-nowrap`}>
+            Agregar
+          </button>
+        </form>
+        {sellers.length === 0 ? (
+          <p className="text-sm text-amber-800">Todavía no hay vendedores cargados.</p>
+        ) : (
+          <ul className="divide-y divide-brand-brown/10 border border-brand-brown/10">
+            {sellers.map((s) => (
+              <li key={s.id} className={`px-3 py-2 flex items-center justify-between text-sm ${s.active ? '' : 'opacity-50'}`}>
+                <span>{s.name}</span>
+                <button type="button" onClick={() => toggleSeller(s)} disabled={busy === s.id} className="text-xs text-brand-brown/70 underline">
+                  {s.active ? 'Dar de baja' : 'Reactivar'}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="bg-white border border-brand-brown/10 p-5 space-y-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="font-display text-xl text-brand-brown mr-auto">Asistencia (lunes a viernes)</h2>
+          <button type="button" onClick={() => shiftWeek(-7)} className={`${btn} border border-brand-brown/30 text-brand-brown`}>
+            ← Semana anterior
+          </button>
+          <button type="button" onClick={() => loadWeek()} className={`${btn} border border-brand-brown/30 text-brand-brown`}>
+            Esta semana
+          </button>
+          <button
+            type="button"
+            onClick={() => shiftWeek(7)}
+            disabled={!week.length || week[0]!.date > today}
+            className={`${btn} border border-brand-brown/30 text-brand-brown`}
+          >
+            Semana siguiente →
+          </button>
+        </div>
+        <p className="text-xs text-brand-brown/60">
+          Cada vendedor tilda solo el día de hoy desde /stock. Desde acá podés corregir cualquier día tocando el casillero.
+        </p>
+        {rows.length === 0 ? (
+          <p className="text-sm text-brand-brown/60">Agregá vendedores para ver la planilla.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-brand-brown/60">
+                  <th className="py-2 pr-3">Vendedor</th>
+                  {week.map((d) => (
+                    <th key={d.date} className={`py-2 px-2 text-center ${d.date === today ? 'text-brand-brown font-semibold' : ''}`}>
+                      {d.label}
+                    </th>
+                  ))}
+                  <th className="py-2 pl-3 text-right">Días</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={row.id} className="border-t border-brand-brown/10">
+                    <td className="py-2 pr-3">{row.name}</td>
+                    {row.days.map((day) => (
+                      <td key={day.date} className="py-2 px-2 text-center">
+                        <button
+                          type="button"
+                          onClick={() => toggleDay(row, day)}
+                          disabled={busy === `${row.id}:${day.date}`}
+                          title={
+                            day.markedAt
+                              ? `Marcado ${new Date(day.markedAt).toLocaleString('es-AR')}${day.markedBy === 'admin' ? ' (admin)' : ''}`
+                              : 'Sin marcar'
+                          }
+                          className={`w-8 h-8 border text-base ${
+                            day.present ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white border-brand-brown/25 text-transparent'
+                          }`}
+                        >
+                          ✓
+                        </button>
+                      </td>
+                    ))}
+                    <td className="py-2 pl-3 text-right font-semibold">{row.total}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </div>
   );
 }

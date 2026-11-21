@@ -55,6 +55,7 @@ export async function POST(request: NextRequest) {
       unitPrice,
       quantity: body?.tracked === false ? null : (quantity ?? 0),
       lowAlert: lowAlert ?? 2,
+      isRental: body?.tracked !== false && Boolean(body?.isRental),
     });
     return NextResponse.json({ ok: true, product });
   } catch {

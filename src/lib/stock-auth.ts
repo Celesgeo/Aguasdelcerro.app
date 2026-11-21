@@ -10,6 +10,7 @@ import { getSetting, setSetting } from '@/lib/stock-store';
 
 export const STAFF_COOKIE = 'adc_stock_staff';
 export const STAFF_NAME_COOKIE = 'adc_stock_name';
+export const STAFF_SELLER_COOKIE = 'adc_stock_seller';
 export const STAFF_MAX_AGE_SEC = 60 * 60 * 14; // un turno largo con margen
 
 const PIN_KEY = 'staff_pin';
@@ -121,6 +122,13 @@ export async function staffNameFromCookie(): Promise<string> {
   } catch {
     return '';
   }
+}
+
+/** Id del vendedor elegido de la lista (para la asistencia). */
+export async function sellerIdFromCookie(): Promise<string | null> {
+  const jar = await cookies();
+  const value = jar.get(STAFF_SELLER_COOKIE)?.value ?? '';
+  return /^[0-9a-f-]{36}$/i.test(value) ? value : null;
 }
 
 /** Quién está usando /stock: el administrador (con su sesión) o el personal (con la clave). */

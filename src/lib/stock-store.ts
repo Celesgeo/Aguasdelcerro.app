@@ -15,13 +15,18 @@ export type StockProduct = {
   lowAlert: number;
   active: boolean;
   sortOrder: number;
+  /** Se alquila: al devolverlo vuelve al stock (p. ej. batas). */
+  isRental: boolean;
 };
+
+const PRODUCT_COLS = 'id, name, category, unit_price, quantity, low_alert, active, sort_order, is_rental';
 
 export type StockMovement = {
   id: string;
   productId: string;
   productName: string;
-  kind: 'sale' | 'restock' | 'adjust';
+  /** return = devolución de algo alquilado (bata): vuelve al stock */
+  kind: 'sale' | 'restock' | 'adjust' | 'return';
   units: number;
   unitPrice: number;
   total: number;
@@ -42,6 +47,7 @@ type ProductRow = {
   low_alert: number;
   active: boolean;
   sort_order: number;
+  is_rental: boolean;
 };
 
 type MovementRow = {
@@ -70,6 +76,7 @@ function mapProduct(row: ProductRow): StockProduct {
     lowAlert: Number(row.low_alert),
     active: row.active,
     sortOrder: Number(row.sort_order),
+    isRental: Boolean(row.is_rental),
   };
 }
 
@@ -179,12 +186,47 @@ async function ensureSeed(): Promise<void> {
           [randomUUID(), name, category, price, quantity, order],
         );
       }
-    }).catch((error: unknown) => {
-      globalForStock.__adcStockSeeded = undefined;
-      throw error;
-    });
+    })
+      .then(() => migrateBatas())
+      .catch((error: unknown) => {
+        globalForStock.__adcStockSeeded = undefined;
+        throw error;
+      });
   }
   return globalForStock.__adcStockSeeded;
+}
+
+/** Una sola vez: las batas pasan a ser de alquiler con 24 unidades. */
+async function migrateBatas(): Promise<void> {
+  await transaction(async (client) => {
+    const marked = await client.query(
+      `INSERT INTO stock_settings (key, value) VALUES ('batas_24_v1', '1') ON CONFLICT (key) DO NOTHING RETURNING key`,
+    );
+    if (marked.rowCount === 0) return;
+    const found = await client.query<ProductRow>(
+      `SELECT ${PRODUCT_COLS} FROM stock_products
+        WHERE category = 'Batas' OR name ILIKE '%bata%'
+        ORDER BY active DESC, sort_order LIMIT 1 FOR UPDATE`,
+    );
+    const bata = found.rows[0];
+    if (!bata) {
+      await client.query(
+        `INSERT INTO stock_products (id, name, category, unit_price, quantity, sort_order, is_rental)
+         VALUES ($1, 'Bata (alquiler)', 'Batas', 10000, 24, 10, true)`,
+        [randomUUID()],
+      );
+      return;
+    }
+    await client.query(
+      `UPDATE stock_products SET quantity = 24, is_rental = true, active = true, updated_at = now() WHERE id = $1`,
+      [bata.id],
+    );
+    await client.query(
+      `INSERT INTO stock_movements (id, product_id, product_name, kind, units, business_date, note)
+       VALUES ($1, $2, $3, 'adjust', $4, $5, 'Carga de batas en alquiler: 24 unidades')`,
+      [randomUUID(), bata.id, bata.name, 24 - (bata.quantity ?? 0), currentBusinessDate()],
+    );
+  });
 }
 
 /* ------------------------------------------------------------------ */
@@ -194,7 +236,7 @@ async function ensureSeed(): Promise<void> {
 export async function listProducts(options: { includeInactive?: boolean } = {}): Promise<StockProduct[]> {
   await ensureSeed();
   const rows = await query<ProductRow>(
-    `SELECT id, name, category, unit_price, quantity, low_alert, active, sort_order
+    `SELECT ${PRODUCT_COLS}
        FROM stock_products
       ${options.includeInactive ? '' : 'WHERE active = true'}
       ORDER BY active DESC, category, sort_order, name`,
@@ -208,6 +250,7 @@ export type ProductInput = {
   unitPrice: number;
   quantity: number | null;
   lowAlert: number;
+  isRental?: boolean;
 };
 
 export async function createProduct(input: ProductInput): Promise<StockProduct> {
@@ -220,10 +263,19 @@ export async function createProduct(input: ProductInput): Promise<StockProduct> 
       [input.category],
     );
     const result = await client.query<ProductRow>(
-      `INSERT INTO stock_products (id, name, category, unit_price, quantity, low_alert, sort_order)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING id, name, category, unit_price, quantity, low_alert, active, sort_order`,
-      [id, input.name, input.category, input.unitPrice, input.quantity, input.lowAlert, order.rows[0]?.next ?? 10],
+      `INSERT INTO stock_products (id, name, category, unit_price, quantity, low_alert, sort_order, is_rental)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING ${PRODUCT_COLS}`,
+      [
+        id,
+        input.name,
+        input.category,
+        input.unitPrice,
+        input.quantity,
+        input.lowAlert,
+        order.rows[0]?.next ?? 10,
+        Boolean(input.isRental),
+      ],
     );
     if (input.quantity && input.quantity > 0) {
       await client.query(
@@ -243,7 +295,7 @@ export async function updateProduct(id: string, update: ProductUpdate): Promise<
   await ensureSeed();
   return transaction(async (client) => {
     const current = await client.query<ProductRow>(
-      `SELECT id, name, category, unit_price, quantity, low_alert, active, sort_order
+      `SELECT ${PRODUCT_COLS}
          FROM stock_products WHERE id = $1 FOR UPDATE`,
       [id],
     );
@@ -257,14 +309,16 @@ export async function updateProduct(id: string, update: ProductUpdate): Promise<
       quantity: update.quantity !== undefined ? update.quantity : row.quantity,
       lowAlert: update.lowAlert ?? Number(row.low_alert),
       active: update.active ?? row.active,
+      isRental: update.isRental ?? row.is_rental,
     };
 
     const result = await client.query<ProductRow>(
       `UPDATE stock_products
-          SET name = $2, category = $3, unit_price = $4, quantity = $5, low_alert = $6, active = $7, updated_at = now()
+          SET name = $2, category = $3, unit_price = $4, quantity = $5, low_alert = $6, active = $7,
+              is_rental = $8, updated_at = now()
         WHERE id = $1
-        RETURNING id, name, category, unit_price, quantity, low_alert, active, sort_order`,
-      [id, next.name, next.category, next.unitPrice, next.quantity, next.lowAlert, next.active],
+        RETURNING ${PRODUCT_COLS}`,
+      [id, next.name, next.category, next.unitPrice, next.quantity, next.lowAlert, next.active, next.isRental],
     );
 
     const before = row.quantity === null ? null : Number(row.quantity);
@@ -294,7 +348,7 @@ export async function restockProduct(id: string, units: number, note?: string): 
       `UPDATE stock_products
           SET quantity = COALESCE(quantity, 0) + $2, updated_at = now()
         WHERE id = $1
-        RETURNING id, name, category, unit_price, quantity, low_alert, active, sort_order`,
+        RETURNING ${PRODUCT_COLS}`,
       [id, units],
     );
     const row = result.rows[0];
@@ -325,7 +379,7 @@ export async function registerSale(input: {
 
   return transaction(async (client) => {
     const current = await client.query<ProductRow>(
-      `SELECT id, name, category, unit_price, quantity, low_alert, active, sort_order
+      `SELECT ${PRODUCT_COLS}
          FROM stock_products WHERE id = $1 FOR UPDATE`,
       [input.productId],
     );
@@ -346,7 +400,7 @@ export async function registerSale(input: {
       `UPDATE stock_products
           SET quantity = CASE WHEN quantity IS NULL THEN NULL ELSE quantity - $2 END, updated_at = now()
         WHERE id = $1
-        RETURNING id, name, category, unit_price, quantity, low_alert, active, sort_order`,
+        RETURNING ${PRODUCT_COLS}`,
       [input.productId, input.units],
     );
 
@@ -370,6 +424,32 @@ export async function registerSale(input: {
     );
 
     return { movement: mapMovement(movement.rows[0]!), product: mapProduct(updated.rows[0]!) };
+  });
+}
+
+/** Devolución de algo alquilado (bata): vuelve al stock, la venta (el cobro) queda. */
+export async function returnRental(input: {
+  productId: string;
+  units: number;
+  staffName: string;
+}): Promise<StockProduct> {
+  await ensureSeed();
+  return transaction(async (client) => {
+    const updated = await client.query<ProductRow>(
+      `UPDATE stock_products
+          SET quantity = COALESCE(quantity, 0) + $2, updated_at = now()
+        WHERE id = $1 AND is_rental = true
+        RETURNING ${PRODUCT_COLS}`,
+      [input.productId, input.units],
+    );
+    const row = updated.rows[0];
+    if (!row) throw new StockError('Ese producto no es de alquiler.');
+    await client.query(
+      `INSERT INTO stock_movements (id, product_id, product_name, kind, units, shift_id, business_date, staff_name, note)
+       VALUES ($1, $2, $3, 'return', $4, $5, $6, $7, 'Devolución')`,
+      [randomUUID(), row.id, row.name, input.units, currentShiftId(), currentBusinessDate(), input.staffName],
+    );
+    return mapProduct(row);
   });
 }
 
