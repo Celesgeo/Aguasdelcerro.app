@@ -46,6 +46,10 @@ export async function POST(request: NextRequest) {
   const productId = String(body?.productId ?? '');
   const units = Number(body?.units ?? 1);
   const staffName = (await staffNameFromCookie()) || sanitizeText(body?.staffName, 60);
+  const paymentMethod = String(body?.paymentMethod ?? 'efectivo');
+  if (!['efectivo', 'transferencia', 'tarjeta'].includes(paymentMethod)) {
+    return NextResponse.json({ ok: false, error: 'Forma de pago inválida' }, { status: 400 });
+  }
 
   if (!UUID.test(productId)) {
     return NextResponse.json({ ok: false, error: 'Producto inválido' }, { status: 400 });
@@ -58,7 +62,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const result = await registerSale({ productId, units, staffName });
+    const result = await registerSale({ productId, units, staffName, paymentMethod });
     const sellerId = await sellerIdFromCookie();
     if (sellerId) await autoMarkAttendance(sellerId).catch(() => undefined);
     return NextResponse.json({ ok: true, ...result });

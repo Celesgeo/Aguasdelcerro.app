@@ -26,7 +26,7 @@ export type StockMovement = {
   productId: string;
   productName: string;
   /** return = devolución de algo alquilado (bata): vuelve al stock */
-  kind: 'sale' | 'restock' | 'adjust' | 'return';
+  kind: 'sale' | 'restock' | 'adjust' | 'return' | 'count';
   units: number;
   unitPrice: number;
   total: number;
@@ -35,6 +35,9 @@ export type StockMovement = {
   staffName: string | null;
   note: string | null;
   voided: boolean;
+  voidedAt: string | null;
+  voidedBy: string | null;
+  paymentMethod: string | null;
   createdAt: string;
 };
 
@@ -63,6 +66,8 @@ type MovementRow = {
   staff_name: string | null;
   note: string | null;
   voided_at: Date | null;
+  voided_by?: string | null;
+  payment_method?: string | null;
   created_at: Date;
 };
 
@@ -94,6 +99,9 @@ function mapMovement(row: MovementRow): StockMovement {
     staffName: row.staff_name,
     note: row.note,
     voided: Boolean(row.voided_at),
+    voidedAt: row.voided_at ? new Date(row.voided_at).toISOString() : null,
+    voidedBy: row.voided_by ?? null,
+    paymentMethod: row.payment_method ?? null,
     createdAt: new Date(row.created_at).toISOString(),
   };
 }
@@ -400,6 +408,7 @@ export async function registerSale(input: {
   productId: string;
   units: number;
   staffName: string;
+  paymentMethod: string;
 }): Promise<{ movement: StockMovement; product: StockProduct }> {
   await ensureSeed();
   const shiftId = currentShiftId();
@@ -435,8 +444,8 @@ export async function registerSale(input: {
     const unitPrice = Number(row.unit_price);
     const movement = await client.query<MovementRow>(
       `INSERT INTO stock_movements
-         (id, product_id, product_name, kind, units, unit_price, total, shift_id, business_date, staff_name)
-       VALUES ($1, $2, $3, 'sale', $4, $5, $6, $7, $8, $9)
+         (id, product_id, product_name, kind, units, unit_price, total, shift_id, business_date, staff_name, payment_method)
+       VALUES ($1, $2, $3, 'sale', $4, $5, $6, $7, $8, $9, $10)
        RETURNING *`,
       [
         randomUUID(),
@@ -448,6 +457,7 @@ export async function registerSale(input: {
         shiftId,
         businessDate,
         input.staffName,
+        input.paymentMethod,
       ],
     );
 
@@ -481,10 +491,60 @@ export async function returnRental(input: {
   });
 }
 
+/**
+ * Conteo físico: el administrador carga lo que contó. Si no coincide con el sistema,
+ * queda registrada la diferencia y el stock pasa a ser lo contado.
+ */
+export async function recordPhysicalCount(
+  productId: string,
+  counted: number,
+  countedBy: string,
+): Promise<{ product: StockProduct; before: number; difference: number } | null> {
+  await ensureSeed();
+  return transaction(async (client) => {
+    const current = await client.query<ProductRow>(
+      `SELECT ${PRODUCT_COLS} FROM stock_products WHERE id = $1 FOR UPDATE`,
+      [productId],
+    );
+    const row = current.rows[0];
+    if (!row) return null;
+    const before = row.quantity === null ? 0 : Number(row.quantity);
+    const difference = counted - before;
+    const updated = await client.query<ProductRow>(
+      `UPDATE stock_products SET quantity = $2, updated_at = now() WHERE id = $1 RETURNING ${PRODUCT_COLS}`,
+      [productId, counted],
+    );
+    await client.query(
+      `INSERT INTO stock_movements (id, product_id, product_name, kind, units, shift_id, business_date, staff_name, note)
+       VALUES ($1, $2, $3, 'count', $4, $5, $6, $7, $8)`,
+      [
+        randomUUID(),
+        productId,
+        row.name,
+        difference,
+        currentShiftId(),
+        currentBusinessDate(),
+        countedBy,
+        `Conteo físico: sistema ${before}, contado ${counted}`,
+      ],
+    );
+    return { product: mapProduct(updated.rows[0]!), before, difference };
+  });
+}
+
+export async function listRecentCounts(limit = 100): Promise<StockMovement[]> {
+  await ensureSeed();
+  const rows = await query<MovementRow>(
+    `SELECT * FROM stock_movements WHERE kind = 'count' ORDER BY created_at DESC LIMIT $1`,
+    [limit],
+  );
+  return rows.map(mapMovement);
+}
+
 /** Anula una venta y devuelve las unidades al stock. */
 export async function voidSale(
   movementId: string,
-  options: { maxAgeMinutes?: number } = {},
+  options: { maxAgeMinutes?: number; voidedBy?: string } = {},
 ): Promise<boolean> {
   await ensureSeed();
   return transaction(async (client) => {
@@ -502,7 +562,10 @@ export async function voidSale(
         );
       }
     }
-    await client.query(`UPDATE stock_movements SET voided_at = now() WHERE id = $1`, [movementId]);
+    await client.query(`UPDATE stock_movements SET voided_at = now(), voided_by = $2 WHERE id = $1`, [
+      movementId,
+      options.voidedBy ?? null,
+    ]);
     await client.query(
       `UPDATE stock_products
           SET quantity = CASE WHEN quantity IS NULL THEN NULL ELSE quantity + $2 END, updated_at = now()

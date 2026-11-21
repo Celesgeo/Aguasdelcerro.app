@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { voidInPersonSale } from '@/lib/reservations';
-import { stockViewer } from '@/lib/stock-auth';
+import { staffNameFromCookie, stockViewer } from '@/lib/stock-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,7 +16,8 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
     return NextResponse.json({ ok: false, error: 'Membresía no encontrada' }, { status: 404 });
   }
   try {
-    const result = await voidInPersonSale(id, viewer === 'admin' ? undefined : STAFF_UNDO_MINUTES);
+    const voidedBy = viewer === 'admin' ? 'Administración' : (await staffNameFromCookie()) || 'Sin nombre';
+    const result = await voidInPersonSale(id, viewer === 'admin' ? undefined : STAFF_UNDO_MINUTES, voidedBy);
     if (result === 'not_found') {
       return NextResponse.json(
         { ok: false, error: 'No se encontró (las compras online se manejan desde Turnos)' },

@@ -8,6 +8,22 @@ import type { ShiftMembership } from '@/lib/stock-memberships';
 import type { StockMovement, StockProduct } from '@/lib/stock-store';
 
 type DayMembership = ShiftMembership & { shiftId: string };
+type VoidedMembership = DayMembership & { voidedAt: string | null; voidedBy: string | null };
+type Closure = {
+  id: string;
+  shiftId: string;
+  staffName: string;
+  openingFloat: number;
+  cashCounted: number;
+  expectedCash: number;
+  difference: number;
+  note: string | null;
+  createdAt: string;
+};
+
+const hhmm = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) : '—';
+const shiftName = (id: string | null) => (id ? shiftLabel(id as VisitorShiftId).split(' · ')[0] : '—');
 
 const PAYMENT_LABEL: Record<string, string> = {
   efectivo: 'Efectivo',
@@ -19,7 +35,7 @@ import { VISITOR_SHIFTS, shiftLabel, type VisitorShiftId } from '@/lib/visitor-s
 
 const ARS = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 
-type Tab = 'productos' | 'ventas' | 'equipo' | 'clave';
+type Tab = 'productos' | 'ventas' | 'conteo' | 'equipo' | 'clave';
 
 type Draft = {
   name: string;
@@ -76,6 +92,7 @@ export default function AdminStock() {
           [
             ['productos', 'Productos y stock'],
             ['ventas', 'Ventas por turno'],
+            ['conteo', 'Conteo físico'],
             ['equipo', 'Vendedores y asistencia'],
             ['clave', 'Clave del personal'],
           ] as const
@@ -99,6 +116,7 @@ export default function AdminStock() {
 
       {tab === 'productos' && <ProductsTab onNotice={flash} onError={fail} />}
       {tab === 'ventas' && <SalesTab onNotice={flash} onError={fail} />}
+      {tab === 'conteo' && <CountTab onNotice={flash} onError={fail} />}
       {tab === 'equipo' && <TeamTab onNotice={flash} onError={fail} />}
       {tab === 'clave' && <PinTab onNotice={flash} onError={fail} />}
     </AdminShell>
@@ -384,6 +402,8 @@ function SalesTab({ onNotice, onError }: TabProps) {
   const [today, setToday] = useState('');
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [memberships, setMemberships] = useState<DayMembership[]>([]);
+  const [voidedMemberships, setVoidedMemberships] = useState<VoidedMembership[]>([]);
+  const [closures, setClosures] = useState<Closure[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -392,13 +412,22 @@ function SalesTab({ onNotice, onError }: TabProps) {
       setLoading(true);
       try {
         const q = next ? `?date=${encodeURIComponent(next)}` : '';
-        const data = await api<{ date: string; today: string; movements: StockMovement[]; memberships: DayMembership[] }>(
+        const data = await api<{
+          date: string;
+          today: string;
+          movements: StockMovement[];
+          memberships: DayMembership[];
+          voidedMemberships: VoidedMembership[];
+          closures: Closure[];
+        }>(
           `/api/admin/stock/movements${q}`,
         );
         setDate(data.date);
         setToday(data.today);
         setMovements(data.movements);
         setMemberships(data.memberships ?? []);
+        setVoidedMemberships(data.voidedMemberships ?? []);
+        setClosures(data.closures ?? []);
       } catch (cause) {
         onError(cause);
       } finally {
@@ -415,6 +444,26 @@ function SalesTab({ onNotice, onError }: TabProps) {
   const sales = movements.filter((m) => m.kind === 'sale');
   const valid = sales.filter((m) => !m.voided);
   const others = movements.filter((m) => m.kind !== 'sale');
+  const voidedSales = movements.filter((m) => m.kind === 'sale' && m.voided);
+  const voidCount = voidedSales.length + voidedMemberships.length;
+  const voidsBySeller = (() => {
+    const map = new Map<string, { count: number; total: number }>();
+    for (const m of voidedSales) {
+      const key = m.staffName || 'Sin nombre';
+      const row = map.get(key) ?? { count: 0, total: 0 };
+      row.count += 1;
+      row.total += m.total;
+      map.set(key, row);
+    }
+    for (const m of voidedMemberships) {
+      const key = m.soldBy || 'Sin nombre';
+      const row = map.get(key) ?? { count: 0, total: 0 };
+      row.count += 1;
+      row.total += m.total;
+      map.set(key, row);
+    }
+    return [...map.entries()].sort((a, b) => b[1].count - a[1].count);
+  })();
 
   const byShift = VISITOR_SHIFTS.map((s) => {
     const items = valid.filter((m) => m.shiftId === s.id);
@@ -523,6 +572,110 @@ function SalesTab({ onNotice, onError }: TabProps) {
             </div>
           </div>
 
+          <section className={`p-4 border-2 ${voidCount > 0 ? 'border-red-400 bg-red-50' : 'border-brand-brown/10 bg-white'}`}>
+            <h3 className={`text-[11px] uppercase tracking-[0.25em] mb-2 ${voidCount > 0 ? 'text-red-800 font-semibold' : 'text-brand-brown/60'}`}>
+              Anulaciones de la jornada {voidCount > 0 ? `(${voidCount})` : ''}
+            </h3>
+            {voidCount === 0 ? (
+              <p className="text-sm text-brand-brown/60">No hubo anulaciones.</p>
+            ) : (
+              <>
+                <p className="text-sm text-red-900 mb-3">
+                  Por vendedor:{' '}
+                  {voidsBySeller.map(([name, v]) => `${name}: ${v.count} (${ARS.format(v.total)})`).join(' · ')}
+                </p>
+                <table className="w-full text-sm">
+                  <thead className="text-left text-xs text-red-900/70">
+                    <tr>
+                      <th className="py-1">Vendida</th>
+                      <th>Anulada</th>
+                      <th>Turno</th>
+                      <th>Qué</th>
+                      <th>Vendió</th>
+                      <th>Anuló</th>
+                      <th className="text-right">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {voidedSales.map((m) => (
+                      <tr key={m.id} className="border-t border-red-200">
+                        <td className="py-1.5">{hhmm(m.createdAt)}</td>
+                        <td>{hhmm(m.voidedAt)}</td>
+                        <td>{shiftName(m.shiftId)}</td>
+                        <td>
+                          {m.units} × {m.productName}
+                        </td>
+                        <td>{m.staffName}</td>
+                        <td>{m.voidedBy ?? '—'}</td>
+                        <td className="text-right">{ARS.format(m.total)}</td>
+                      </tr>
+                    ))}
+                    {voidedMemberships.map((m) => (
+                      <tr key={m.id} className="border-t border-red-200">
+                        <td className="py-1.5">{hhmm(m.createdAt)}</td>
+                        <td>{hhmm(m.voidedAt)}</td>
+                        <td>{shiftName(m.shiftId)}</td>
+                        <td>
+                          Membresía {m.quantity} pers. · {m.code}
+                        </td>
+                        <td>{m.soldBy ?? '—'}</td>
+                        <td>{m.voidedBy ?? '—'}</td>
+                        <td className="text-right">{ARS.format(m.total)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
+          </section>
+
+          <section className="bg-white border border-brand-brown/10 p-4">
+            <h3 className="text-[11px] uppercase tracking-[0.25em] text-brand-brown/60 mb-2">Cierres de caja</h3>
+            {closures.length === 0 ? (
+              <p className="text-sm text-brand-brown/60">Todavía no hay cierres de caja en esta jornada.</p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead className="text-left text-xs text-brand-brown/60">
+                  <tr>
+                    <th className="py-1">Turno</th>
+                    <th>Cerró</th>
+                    <th>Hora</th>
+                    <th className="text-right">Fondo</th>
+                    <th className="text-right">Debería haber</th>
+                    <th className="text-right">Contó</th>
+                    <th className="text-right">Diferencia</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {closures.map((c) => (
+                    <tr key={c.id} className="border-t border-brand-brown/10 align-top">
+                      <td className="py-1.5">{shiftName(c.shiftId)}</td>
+                      <td>
+                        {c.staffName}
+                        {c.note ? <span className="block text-xs text-brand-brown/60">{c.note}</span> : null}
+                      </td>
+                      <td>{hhmm(c.createdAt)}</td>
+                      <td className="text-right">{ARS.format(c.openingFloat)}</td>
+                      <td className="text-right">{ARS.format(c.expectedCash)}</td>
+                      <td className="text-right">{ARS.format(c.cashCounted)}</td>
+                      <td
+                        className={`text-right font-semibold ${
+                          c.difference < 0 ? 'text-red-700' : c.difference > 0 ? 'text-amber-700' : 'text-emerald-700'
+                        }`}
+                      >
+                        {c.difference === 0 ? 'OK' : `${c.difference > 0 ? '+' : ''}${ARS.format(c.difference)}`}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            <p className="mt-2 text-xs text-brand-brown/50">
+              “Debería haber” = fondo inicial + productos y membresías presenciales cobrados en efectivo en ese turno, hasta la hora del
+              cierre. El vendedor no ve este número. En rojo: falta plata; en amarillo: sobra.
+            </p>
+          </section>
+
           <section className="bg-white border border-brand-brown/10 p-4">
             <h3 className="text-[11px] uppercase tracking-[0.25em] text-brand-brown/60 mb-2">Membresías de la jornada</h3>
             <p className="text-xs text-brand-brown/70 mb-3">
@@ -599,19 +752,21 @@ function SalesTab({ onNotice, onError }: TabProps) {
                     <th>Turno</th>
                     <th>Producto</th>
                     <th>Vendió</th>
+                    <th>Pago</th>
                     <th className="text-right">Total</th>
                     <th />
                   </tr>
                 </thead>
                 <tbody>
                   {sales.map((m) => (
-                    <tr key={m.id} className={`border-t border-brand-brown/10 ${m.voided ? 'opacity-50 line-through' : ''}`}>
+                    <tr key={m.id} className={`border-t border-brand-brown/10 ${m.voided ? 'bg-red-50 text-red-800 line-through' : ''}`}>
                       <td className="py-1.5">{new Date(m.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}</td>
                       <td>{m.shiftId ? shiftLabel(m.shiftId as VisitorShiftId).split(' · ')[0] : '—'}</td>
                       <td>
                         {m.units} × {m.productName}
                       </td>
                       <td>{m.staffName}</td>
+                      <td>{PAYMENT_LABEL[m.paymentMethod ?? ''] ?? '—'}</td>
                       <td className="text-right">{ARS.format(m.total)}</td>
                       <td className="text-right">
                         {!m.voided && (
@@ -629,10 +784,15 @@ function SalesTab({ onNotice, onError }: TabProps) {
 
           {others.length > 0 && (
             <section className="bg-white border border-brand-brown/10 p-4">
-              <h3 className="text-[11px] uppercase tracking-[0.25em] text-brand-brown/60 mb-2">Reposiciones y ajustes</h3>
+              <h3 className="text-[11px] uppercase tracking-[0.25em] text-brand-brown/60 mb-2">
+                Reposiciones, ajustes, devoluciones y conteos
+              </h3>
               <ul className="text-sm divide-y divide-brand-brown/10">
                 {others.map((m) => (
-                  <li key={m.id} className="py-1.5 flex gap-3">
+                  <li
+                    key={m.id}
+                    className={`py-1.5 flex gap-3 ${m.kind === 'count' && m.units !== 0 ? 'bg-amber-50 text-amber-900 font-medium' : ''}`}
+                  >
                     <span className="w-12 text-brand-brown/60">
                       {new Date(m.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
                     </span>
@@ -901,6 +1061,139 @@ function TeamTab({ onNotice, onError }: TabProps) {
               </tbody>
             </table>
           </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+/* ============================== Conteo físico ============================== */
+
+function CountTab({ onNotice, onError }: TabProps) {
+  const [products, setProducts] = useState<StockProduct[]>([]);
+  const [history, setHistory] = useState<StockMovement[]>([]);
+  const [counted, setCounted] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+  const [results, setResults] = useState<{ name: string; before: number; counted: number; difference: number }[]>([]);
+
+  const load = useCallback(async () => {
+    try {
+      const [p, h] = await Promise.all([
+        api<{ products: StockProduct[] }>('/api/admin/stock/products'),
+        api<{ counts: StockMovement[] }>('/api/admin/stock/counts'),
+      ]);
+      setProducts(p.products.filter((x) => x.active && x.quantity !== null));
+      setHistory(h.counts);
+    } catch (cause) {
+      onError(cause);
+    }
+  }, [onError]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const filled = Object.entries(counted).filter(([, v]) => v.trim() !== '');
+
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
+    if (filled.length === 0) return;
+    if (!window.confirm(`¿Guardar el conteo de ${filled.length} producto(s)? El stock pasa a ser lo contado.`)) return;
+    setBusy(true);
+    try {
+      const data = await api<{ results: { name: string; before: number; counted: number; difference: number }[] }>(
+        '/api/admin/stock/counts',
+        {
+          method: 'POST',
+          body: JSON.stringify({ items: filled.map(([productId, v]) => ({ productId, counted: Number(v) })) }),
+        },
+      );
+      setResults(data.results);
+      const diffs = data.results.filter((r) => r.difference !== 0).length;
+      onNotice(diffs === 0 ? 'Conteo guardado: todo coincide.' : `Conteo guardado: ${diffs} producto(s) con diferencias.`);
+      setCounted({});
+      await load();
+    } catch (cause) {
+      onError(cause);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const grouped = STOCK_CATEGORIES.map((c) => [c, products.filter((p) => p.category === c)] as const).filter(([, l]) => l.length > 0);
+
+  return (
+    <div className="space-y-6 font-body">
+      <p className="text-sm text-brand-brown/80 max-w-2xl">
+        Contá lo que hay de verdad y cargalo acá (podés cargar solo algunos productos). Si no coincide con el sistema, queda
+        registrada la diferencia y el stock se corrige a lo contado. Un número negativo significa que falta mercadería que no
+        figura vendida.
+      </p>
+
+      {results.length > 0 && (
+        <section className="bg-white border border-brand-brown/10 p-4">
+          <h3 className="text-[11px] uppercase tracking-[0.25em] text-brand-brown/60 mb-2">Resultado del último conteo</h3>
+          <ul className="text-sm divide-y divide-brand-brown/10">
+            {results.map((r) => (
+              <li key={r.name} className={`py-1.5 flex justify-between ${r.difference < 0 ? 'text-red-700 font-semibold' : r.difference > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>
+                <span>{r.name}</span>
+                <span>
+                  sistema {r.before} · contado {r.counted} ·{' '}
+                  {r.difference === 0 ? 'OK' : `${r.difference > 0 ? '+' : ''}${r.difference}`}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <form onSubmit={save} className="space-y-4">
+        {grouped.map(([category, items]) => (
+          <section key={category}>
+            <h3 className="text-[11px] uppercase tracking-[0.25em] text-brand-brown/60 mb-2">{category}</h3>
+            <div className="bg-white border border-brand-brown/10 divide-y divide-brand-brown/10">
+              {items.map((p) => (
+                <div key={p.id} className="p-3 flex items-center gap-3 text-sm">
+                  <span className="flex-1">{p.name}</span>
+                  <span className="w-28 text-brand-brown/60">Sistema: {p.quantity}</span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={counted[p.id] ?? ''}
+                    onChange={(e) => setCounted((c) => ({ ...c, [p.id]: e.target.value }))}
+                    placeholder="Contado"
+                    className="w-24 border border-brand-brown/20 px-2 py-1.5"
+                    aria-label={`Contado de ${p.name}`}
+                  />
+                </div>
+              ))}
+            </div>
+          </section>
+        ))}
+        <button type="submit" disabled={busy || filled.length === 0} className={`${btn} bg-brand-brown text-brand-cream`}>
+          {busy ? 'Guardando…' : `Guardar conteo (${filled.length})`}
+        </button>
+      </form>
+
+      <section className="bg-white border border-brand-brown/10 p-4">
+        <h3 className="text-[11px] uppercase tracking-[0.25em] text-brand-brown/60 mb-2">Historial de conteos</h3>
+        {history.length === 0 ? (
+          <p className="text-sm text-brand-brown/60">Todavía no se hizo ningún conteo.</p>
+        ) : (
+          <table className="w-full text-sm">
+            <tbody>
+              {history.map((m) => (
+                <tr key={m.id} className={`border-t border-brand-brown/10 ${m.units < 0 ? 'text-red-700' : m.units > 0 ? 'text-amber-700' : ''}`}>
+                  <td className="py-1.5">
+                    {m.businessDate.split('-').reverse().join('/')} {hhmm(m.createdAt)}
+                  </td>
+                  <td>{m.productName}</td>
+                  <td className="text-brand-brown/70">{m.note}</td>
+                  <td className="text-right font-semibold">{m.units === 0 ? 'OK' : `${m.units > 0 ? '+' : ''}${m.units}`}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </section>
     </div>

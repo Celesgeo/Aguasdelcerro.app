@@ -176,6 +176,27 @@ CREATE TABLE IF NOT EXISTS stock_attendance (
 );
 CREATE INDEX IF NOT EXISTS stock_attendance_date_idx ON stock_attendance (work_date);
 
+ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS payment_method TEXT;
+ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS voided_by TEXT;
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS voided_by TEXT;
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS voided_at TIMESTAMPTZ;
+
+-- Cierre de caja de cada turno: lo que contó el vendedor vs. lo que debería haber en efectivo.
+CREATE TABLE IF NOT EXISTS stock_cash_closures (
+  id UUID PRIMARY KEY,
+  business_date TEXT NOT NULL,
+  shift_id TEXT NOT NULL,
+  staff_name TEXT NOT NULL,
+  seller_id UUID,
+  opening_float INTEGER NOT NULL DEFAULT 0,
+  cash_counted INTEGER NOT NULL,
+  expected_cash INTEGER NOT NULL,
+  difference INTEGER NOT NULL,
+  note TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS stock_cash_closures_day_idx ON stock_cash_closures (business_date, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS stock_settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL,

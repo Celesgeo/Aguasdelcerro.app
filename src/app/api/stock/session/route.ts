@@ -5,7 +5,9 @@ import {
   STAFF_NAME_COOKIE,
   STAFF_SELLER_COOKIE,
   checkStaffPin,
+  currentShiftEnd,
   isStaffPinConfigured,
+  secondsUntilShiftEnd,
   sellerIdFromCookie,
   staffCookieOptions,
   staffNameFromCookie,
@@ -40,6 +42,7 @@ export async function GET() {
       staffName: viewer ? staffName : '',
       sellerId: viewer ? sellerId : null,
       daysThisWeek,
+      sessionEndsAt: viewer === 'staff' ? currentShiftEnd().toISOString() : null,
       sellers,
       shiftId: currentShiftId(),
       businessDate: currentBusinessDate(),
@@ -68,7 +71,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: false, error: 'Clave incorrecta' }, { status: 401 });
     }
     const res = NextResponse.json({ ok: true });
-    res.cookies.set(STAFF_COOKIE, token, staffCookieOptions());
+    res.cookies.set(STAFF_COOKIE, token, staffCookieOptions(secondsUntilShiftEnd()));
     // Al entrar se elige de nuevo quién atiende.
     res.cookies.set(STAFF_NAME_COOKIE, '', { ...staffCookieOptions(0), maxAge: 0 });
     res.cookies.set(STAFF_SELLER_COOKIE, '', { ...staffCookieOptions(0), maxAge: 0 });
@@ -95,8 +98,8 @@ export async function PUT(request: NextRequest) {
     const daysThisWeek = await weekCount(seller.id);
 
     const res = NextResponse.json({ ok: true, staffName: seller.name, sellerId: seller.id, daysThisWeek });
-    res.cookies.set(STAFF_NAME_COOKIE, encodeURIComponent(seller.name), staffCookieOptions());
-    res.cookies.set(STAFF_SELLER_COOKIE, seller.id, staffCookieOptions());
+    res.cookies.set(STAFF_NAME_COOKIE, encodeURIComponent(seller.name), staffCookieOptions(secondsUntilShiftEnd()));
+    res.cookies.set(STAFF_SELLER_COOKIE, seller.id, staffCookieOptions(secondsUntilShiftEnd()));
     return res;
   } catch (error) {
     if (error instanceof SellerError) return NextResponse.json({ ok: false, error: error.message }, { status: 400 });

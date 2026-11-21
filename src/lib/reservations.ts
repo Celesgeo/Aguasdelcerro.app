@@ -520,7 +520,11 @@ export async function listPaidMemberships(date: string, shiftId?: VisitorShiftId
 }
 
 /** Anula una venta presencial (devuelve el lugar al cupo). Solo presenciales: las online se manejan en Turnos. */
-export async function voidInPersonSale(id: string, maxAgeMinutes?: number): Promise<'ok' | 'not_found' | 'too_late'> {
+export async function voidInPersonSale(
+  id: string,
+  maxAgeMinutes?: number,
+  voidedBy?: string,
+): Promise<'ok' | 'not_found' | 'too_late'> {
   const rows = await query<{ id: string; created_at: Date }>(
     `SELECT id, created_at FROM reservations WHERE id = $1 AND sale_origin = 'presencial' AND status = 'paid'`,
     [id],
@@ -531,8 +535,24 @@ export async function voidInPersonSale(id: string, maxAgeMinutes?: number): Prom
     return 'too_late';
   }
   await query(
-    `UPDATE reservations SET status = 'cancelled', updated_at = now() WHERE id = $1 AND status = 'paid'`,
-    [id],
+    `UPDATE reservations SET status = 'cancelled', voided_at = now(), voided_by = $2, updated_at = now()
+      WHERE id = $1 AND status = 'paid'`,
+    [id, voidedBy ?? null],
   );
   return 'ok';
+}
+
+/** Membresías presenciales anuladas en un día (para resaltarlas en el panel). */
+export async function listVoidedInPerson(date: string): Promise<(Reservation & { voidedAt: string | null; voidedBy: string | null })[]> {
+  const rows = await query<ReservationRow & { voided_at: Date | null; voided_by: string | null }>(
+    `SELECT * FROM reservations
+      WHERE visit_date = $1 AND sale_origin = 'presencial' AND status = 'cancelled'
+      ORDER BY voided_at DESC NULLS LAST`,
+    [date],
+  );
+  return rows.map((row) => ({
+    ...toReservation(row),
+    voidedAt: row.voided_at ? new Date(row.voided_at).toISOString() : null,
+    voidedBy: row.voided_by ?? null,
+  }));
 }

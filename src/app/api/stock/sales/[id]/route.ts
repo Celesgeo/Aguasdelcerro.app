@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { stockViewer } from '@/lib/stock-auth';
+import { staffNameFromCookie, stockViewer } from '@/lib/stock-auth';
 import { StockError, voidSale } from '@/lib/stock-store';
 
 export const dynamic = 'force-dynamic';
@@ -17,7 +17,11 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
     return NextResponse.json({ ok: false, error: 'Venta no encontrada' }, { status: 404 });
   }
   try {
-    const done = await voidSale(id, viewer === 'admin' ? {} : { maxAgeMinutes: STAFF_UNDO_MINUTES });
+    const voidedBy = viewer === 'admin' ? 'Administración' : (await staffNameFromCookie()) || 'Sin nombre';
+    const done = await voidSale(
+      id,
+      viewer === 'admin' ? { voidedBy } : { maxAgeMinutes: STAFF_UNDO_MINUTES, voidedBy },
+    );
     if (!done) return NextResponse.json({ ok: false, error: 'Venta no encontrada o ya anulada' }, { status: 404 });
     return NextResponse.json({ ok: true });
   } catch (error) {

@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import { SITE } from '@/lib/constants';
 import { STOCK_CATEGORIES } from '@/lib/stock-shared';
@@ -32,6 +32,7 @@ type Session = {
   staffName: string;
   sellerId: string | null;
   daysThisWeek: number | null;
+  sessionEndsAt: string | null;
   sellers: { id: string; name: string }[];
   shiftId: VisitorShiftId;
   businessDate: string;
@@ -73,6 +74,11 @@ export default function StockStaff() {
   const [mQty, setMQty] = useState(1);
   const [mPay, setMPay] = useState<string>('efectivo');
   const [mName, setMName] = useState('');
+  const [pPay, setPPay] = useState<string>('efectivo');
+  const [shiftEnded, setShiftEnded] = useState(false);
+  const [closing, setClosing] = useState({ openingFloat: '', cashCounted: '', note: '' });
+  const [closures, setClosures] = useState<{ staffName: string; createdAt: string }[]>([]);
+  const wasLoggedIn = useRef(false);
 
   const loadSession = useCallback(async () => {
     try {
@@ -81,6 +87,14 @@ export default function StockStaff() {
       if (!data.ok) throw new Error(data.error);
       setSession(data);
       setStaffName(data.staffName || '');
+      // Si estaba adentro y la sesión ya no existe, terminó el turno: se limpia la pantalla.
+      if (wasLoggedIn.current && !data.viewer) {
+        setShiftEnded(true);
+        setProducts([]);
+        setSales([]);
+        setMInfo(null);
+      }
+      wasLoggedIn.current = Boolean(data.viewer);
       return data as Session;
     } catch {
       setError('No se pudo conectar. Revisá internet y recargá la página.');
@@ -90,11 +104,13 @@ export default function StockStaff() {
 
   const loadData = useCallback(async () => {
     try {
-      const [p, s, m] = await Promise.all([
+      const [p, s, m, c] = await Promise.all([
         fetch('/api/stock/products', { cache: 'no-store' }).then((r) => r.json()),
         fetch('/api/stock/sales', { cache: 'no-store' }).then((r) => r.json()),
         fetch('/api/stock/memberships', { cache: 'no-store' }).then((r) => r.json()),
+        fetch('/api/stock/closure', { cache: 'no-store' }).then((r) => r.json()),
       ]);
+      if (c.ok) setClosures(c.closures);
       if (p.ok) setProducts(p.products);
       if (s.ok) setSales(s.sales);
       if (m.ok) setMInfo(m);
@@ -171,10 +187,37 @@ export default function StockStaff() {
       if (!data.ok) throw new Error(data.error || 'Clave incorrecta');
       setPin('');
       setNameDraft('');
+      setShiftEnded(false);
       const s = await loadSession();
       if (s?.viewer) await loadData();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'No se pudo ingresar');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const closeCash = async (e: FormEvent) => {
+    e.preventDefault();
+    const cashCounted = Number(closing.cashCounted.replace(/\D/g, ''));
+    const openingFloat = Number(closing.openingFloat.replace(/\D/g, '') || 0);
+    if (!closing.cashCounted.trim()) return;
+    if (!window.confirm(`¿Cerrar la caja del turno con ${ARS.format(cashCounted)} en efectivo?`)) return;
+    setBusy('closure');
+    setError(null);
+    try {
+      const res = await fetch('/api/stock/closure', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cashCounted, openingFloat, note: closing.note }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'No se pudo cerrar la caja');
+      setClosing({ openingFloat: '', cashCounted: '', note: '' });
+      setNotice('Cierre de caja enviado al administrador.');
+      await loadData();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No se pudo cerrar la caja');
     } finally {
       setBusy(null);
     }
@@ -201,12 +244,13 @@ export default function StockStaff() {
       const res = await fetch('/api/stock/sales', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId: product.id, units: qty, staffName: staffName.trim() }),
+        body: JSON.stringify({ productId: product.id, units: qty, staffName: staffName.trim(), paymentMethod: pPay }),
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || 'No se pudo registrar');
-      setNotice(`Vendido: ${qty} × ${product.name} · ${ARS.format(product.unitPrice * qty)}`);
+      setNotice(`Vendido: ${qty} × ${product.name} · ${ARS.format(product.unitPrice * qty)} · ${PAYMENT_LABEL[pPay]}`);
       setUnits((u) => ({ ...u, [product.id]: 1 }));
+      setPPay('efectivo');
       await loadData();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'No se pudo registrar');
@@ -361,6 +405,11 @@ export default function StockStaff() {
         {header}
         <form onSubmit={login} className="mx-auto max-w-sm px-6 py-12 space-y-4">
           <h1 className="font-display text-2xl text-brand-brown">Ingreso del personal</h1>
+          {shiftEnded && (
+            <p className="text-sm font-body text-brand-brown bg-white border border-brand-brown/15 p-3">
+              Terminó el turno y la sesión se cerró sola. El próximo turno tiene que ingresar de nuevo.
+            </p>
+          )}
           {!session.pinConfigured && (
             <p className="text-sm font-body text-amber-800 bg-amber-50 border border-amber-200 p-3">
               El administrador todavía no definió la clave. Se carga desde el panel de administración → Stock.
@@ -571,6 +620,25 @@ export default function StockStaff() {
         {error && <p className="text-sm bg-red-50 border border-red-200 text-red-800 p-3">{error}</p>}
         {notice && <p className="text-sm bg-emerald-50 border border-emerald-200 text-emerald-900 p-3">{notice}</p>}
 
+        <div className="bg-white border border-brand-brown/10 p-3 space-y-2">
+          <p className="text-xs uppercase tracking-[0.15em] text-brand-brown/70">Cobro de productos</p>
+          <div className="flex flex-wrap gap-2">
+            {(['efectivo', 'transferencia', 'tarjeta'] as const).map((method) => (
+              <button
+                key={method}
+                type="button"
+                onClick={() => setPPay(method)}
+                className={`px-3 py-2 text-xs uppercase tracking-[0.1em] border ${
+                  pPay === method ? 'bg-brand-brown text-brand-cream border-brand-brown' : 'bg-white border-brand-brown/20 text-brand-brown'
+                }`}
+              >
+                {PAYMENT_LABEL[method]}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-brand-brown/50">Después de cada venta vuelve a Efectivo.</p>
+        </div>
+
         <input
           type="search"
           value={search}
@@ -659,7 +727,10 @@ export default function StockStaff() {
                     </span>
                     <span className="flex-1">
                       {s.units} × {s.productName}
-                      <span className="block text-xs text-brand-brown/60">{s.staffName}</span>
+                      <span className="block text-xs text-brand-brown/60">
+                        {s.staffName}
+                        {s.paymentMethod ? ` · ${PAYMENT_LABEL[s.paymentMethod] ?? s.paymentMethod}` : ''}
+                      </span>
                     </span>
                     <span>{ARS.format(s.total)}</span>
                     {canUndo && (
@@ -681,6 +752,65 @@ export default function StockStaff() {
             Si te equivocaste, podés anular una venta dentro de los {UNDO_MINUTES} minutos.
           </p>
         </section>
+
+        <section className="bg-white border border-brand-brown/10 p-4 space-y-3">
+          <h2 className="text-[11px] uppercase tracking-[0.25em] text-brand-brown/60">Cierre de caja del turno</h2>
+          {closures.length > 0 && (
+            <p className="text-sm bg-emerald-50 border border-emerald-200 text-emerald-900 p-2">
+              Caja cerrada por {closures[0]!.staffName} a las{' '}
+              {new Date(closures[0]!.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}.
+              {closures.length > 1 ? ` (${closures.length} cierres en este turno)` : ''}
+            </p>
+          )}
+          <form onSubmit={closeCash} className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block text-xs text-brand-brown/70">
+                Fondo inicial (cambio)
+                <input
+                  inputMode="numeric"
+                  value={closing.openingFloat}
+                  onChange={(e) => setClosing((c) => ({ ...c, openingFloat: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
+                  placeholder="$ 0"
+                  className="mt-1 w-full border border-brand-brown/20 px-3 py-2 text-base"
+                />
+              </label>
+              <label className="block text-xs text-brand-brown/70">
+                Efectivo contado
+                <input
+                  inputMode="numeric"
+                  value={closing.cashCounted}
+                  onChange={(e) => setClosing((c) => ({ ...c, cashCounted: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
+                  placeholder="$"
+                  className="mt-1 w-full border border-brand-brown/20 px-3 py-2 text-base"
+                />
+              </label>
+            </div>
+            <input
+              value={closing.note}
+              onChange={(e) => setClosing((c) => ({ ...c, note: e.target.value.slice(0, 300) }))}
+              placeholder="Nota (opcional)"
+              className="w-full border border-brand-brown/20 px-3 py-2 text-base"
+            />
+            <button
+              type="submit"
+              disabled={busy === 'closure' || !closing.cashCounted}
+              className="w-full bg-brand-brown text-brand-cream py-3 text-xs uppercase tracking-[0.15em] disabled:opacity-50"
+            >
+              {busy === 'closure' ? 'Enviando…' : 'Cerrar caja'}
+            </button>
+            <p className="text-xs text-brand-brown/50">
+              Contá todo el efectivo de la caja (incluido el cambio con el que arrancaste) antes de enviar.
+            </p>
+          </form>
+        </section>
+
+        {session.sessionEndsAt && (
+          <p className="text-center text-xs text-brand-brown/50">
+            La sesión se cierra sola a las{' '}
+            {new Date(session.sessionEndsAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Argentina/Buenos_Aires' })}{' '}
+            (fin del turno).
+          </p>
+        )}
       </main>
     </div>
   );

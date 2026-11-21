@@ -1,7 +1,8 @@
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { cookies } from 'next/headers';
 import { COOKIE_NAME as ADMIN_COOKIE, verifyAdminSessionToken } from '@/lib/admin-auth';
-import { getSetting, setSetting } from '@/lib/stock-store';
+import { currentBusinessDate, currentShiftId, getSetting, setSetting } from '@/lib/stock-store';
+import { shiftEndInstant } from '@/lib/visitor-shifts';
 
 /**
  * Acceso del personal a /stock con una clave compartida que define el administrador.
@@ -11,7 +12,17 @@ import { getSetting, setSetting } from '@/lib/stock-store';
 export const STAFF_COOKIE = 'adc_stock_staff';
 export const STAFF_NAME_COOKIE = 'adc_stock_name';
 export const STAFF_SELLER_COOKIE = 'adc_stock_seller';
-export const STAFF_MAX_AGE_SEC = 60 * 60 * 14; // un turno largo con margen
+export const STAFF_MAX_AGE_SEC = 60 * 60 * 6; // un turno: 6 horas
+
+/** Hasta cuándo dura la sesión del personal: el final del turno en curso. */
+export function currentShiftEnd(now = new Date()): Date {
+  return shiftEndInstant(currentBusinessDate(now), currentShiftId(now));
+}
+
+/** Segundos que faltan para que termine el turno (mínimo 60). */
+export function secondsUntilShiftEnd(now = new Date()): number {
+  return Math.max(60, Math.floor((currentShiftEnd(now).getTime() - now.getTime()) / 1000));
+}
 
 const PIN_KEY = 'staff_pin';
 
@@ -83,7 +94,8 @@ export async function checkStaffPin(pin: string): Promise<string | null> {
   const expected = Buffer.from(stored.hash, 'base64url');
   if (candidate.length !== expected.length || !timingSafeEqual(candidate, expected)) return null;
 
-  const exp = Date.now() + STAFF_MAX_AGE_SEC * 1000;
+  // La sesión se cierra sola al terminar el turno.
+  const exp = currentShiftEnd().getTime();
   const body = `staff|${stored.version}|${exp}|${randomBytes(6).toString('base64url')}`;
   return `${body}.${hmac(body)}`;
 }
@@ -98,7 +110,10 @@ async function verifyStaffToken(token: string | undefined): Promise<boolean> {
   if (sig.length !== expected.length || !timingSafeEqual(sig, expected)) return false;
 
   const [kind, version, expStr] = body.split('|');
-  if (kind !== 'staff' || !version || Date.now() > Number(expStr)) return false;
+  const exp = Number(expStr);
+  if (kind !== 'staff' || !version || !Number.isFinite(exp) || Date.now() > exp) return false;
+  // Ninguna sesión pasa del final del turno en curso (también corta sesiones viejas de 14 h).
+  if (exp > currentShiftEnd().getTime() + 60_000) return false;
   const stored = await readPin();
   return Boolean(stored && stored.version === version);
 }
