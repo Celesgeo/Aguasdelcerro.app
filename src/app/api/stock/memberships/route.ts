@@ -8,7 +8,7 @@ import {
   isInPersonPaymentMethod,
   listPaidMemberships,
 } from '@/lib/reservations';
-import { stockViewer } from '@/lib/stock-auth';
+import { staffNameFromCookie, stockViewer } from '@/lib/stock-auth';
 import { toShiftMembership } from '@/lib/stock-memberships';
 import { currentBusinessDate, currentShiftId } from '@/lib/stock-store';
 import { clientIp, rateLimit, sanitizeText } from '@/lib/security';
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
   const quantity = Number(body?.quantity ?? 1);
   const paymentMethod = String(body?.paymentMethod ?? '');
-  const staffName = sanitizeText(body?.staffName, 60);
+  const staffName = (await staffNameFromCookie()) || sanitizeText(body?.staffName, 60);
   const name = sanitizeText(body?.name, 80);
   const phone = sanitizeText(body?.phone, 40);
 

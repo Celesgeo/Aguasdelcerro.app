@@ -29,6 +29,7 @@ type MembershipInfo = {
 type Session = {
   viewer: 'admin' | 'staff' | null;
   pinConfigured: boolean;
+  staffName: string;
   shiftId: VisitorShiftId;
   businessDate: string;
 };
@@ -57,6 +58,8 @@ export default function StockStaff() {
   const [sales, setSales] = useState<StockMovement[]>([]);
   const [pin, setPin] = useState('');
   const [staffName, setStaffName] = useState('');
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState('');
   const [search, setSearch] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -74,6 +77,7 @@ export default function StockStaff() {
       const data = await res.json();
       if (!data.ok) throw new Error(data.error);
       setSession(data);
+      if (data.staffName) setStaffName(data.staffName);
       return data as Session;
     } catch {
       setError('No se pudo conectar. Revisá internet y recargá la página.');
@@ -119,12 +123,37 @@ export default function StockStaff() {
     return () => window.clearInterval(timer);
   }, [session?.viewer, loadData, loadSession]);
 
-  const saveName = (value: string) => {
-    setStaffName(value);
+  const rememberLocally = (value: string) => {
     try {
       localStorage.setItem(NAME_KEY, value);
     } catch {
       // ignorar
+    }
+  };
+
+  /** Guarda el nombre en la sesión del servidor (no se pierde si el navegador borra datos). */
+  const saveName = async (e: FormEvent) => {
+    e.preventDefault();
+    const value = nameDraft.trim();
+    if (!value) return;
+    setBusy('name');
+    setError(null);
+    try {
+      const res = await fetch('/api/stock/session', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ staffName: value }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'No se pudo guardar el nombre');
+      setStaffName(data.staffName);
+      rememberLocally(data.staffName);
+      setEditingName(false);
+      setNotice(`Listo, ahora atiende ${data.staffName}.`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No se pudo guardar el nombre');
+    } finally {
+      setBusy(null);
     }
   };
 
@@ -136,11 +165,13 @@ export default function StockStaff() {
       const res = await fetch('/api/stock/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin }),
+        body: JSON.stringify({ pin, staffName: staffName.trim() }),
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || 'Clave incorrecta');
       setPin('');
+      setStaffName(data.staffName);
+      rememberLocally(data.staffName);
       const s = await loadSession();
       if (s?.viewer) await loadData();
     } catch (cause) {
@@ -160,7 +191,7 @@ export default function StockStaff() {
   const sell = async (product: StockProduct) => {
     const qty = units[product.id] ?? 1;
     if (!staffName.trim()) {
-      setError('Escribí tu nombre arriba antes de vender.');
+      setError('Escribí tu nombre arriba y tocá Guardar antes de vender.');
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -206,7 +237,7 @@ export default function StockStaff() {
   const sellMembership = async (e: FormEvent) => {
     e.preventDefault();
     if (!staffName.trim()) {
-      setError('Escribí tu nombre arriba antes de cargar.');
+      setError('Escribí tu nombre arriba y tocá Guardar antes de cargar.');
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -306,12 +337,22 @@ export default function StockStaff() {
       <div className="min-h-screen bg-brand-cream">
         {header}
         <form onSubmit={login} className="mx-auto max-w-sm px-6 py-12 space-y-4">
-          <h1 className="font-display text-2xl text-brand-brown">Ingresá la clave del personal</h1>
+          <h1 className="font-display text-2xl text-brand-brown">Ingreso del personal</h1>
           {!session.pinConfigured && (
             <p className="text-sm font-body text-amber-800 bg-amber-50 border border-amber-200 p-3">
               El administrador todavía no definió la clave. Se carga desde el panel de administración → Stock.
             </p>
           )}
+          <label className="block text-xs uppercase tracking-[0.15em] text-brand-brown/70 font-body">
+            Tu nombre
+            <input
+              value={staffName}
+              onChange={(e) => setStaffName(e.target.value.slice(0, 60))}
+              placeholder="Ej.: Sofía"
+              autoComplete="name"
+              className="mt-1 w-full border border-brand-brown/20 bg-white px-4 py-3 text-lg normal-case tracking-normal text-brand-dark"
+            />
+          </label>
           <input
             type="password"
             autoComplete="off"
@@ -327,7 +368,7 @@ export default function StockStaff() {
           {error && <p className="text-sm text-red-700 font-body">{error}</p>}
           <button
             type="submit"
-            disabled={busy === 'login' || pin.length < 6}
+            disabled={busy === 'login' || pin.length < 6 || !staffName.trim()}
             className="w-full bg-brand-brown text-brand-cream py-3 font-body tracking-[0.15em] uppercase text-sm disabled:opacity-50"
           >
             {busy === 'login' ? 'Ingresando…' : 'Ingresar'}
@@ -342,15 +383,43 @@ export default function StockStaff() {
       {header}
       <main className="mx-auto max-w-3xl px-4 py-5 space-y-5 font-body">
         <section className="bg-white border border-brand-brown/10 p-4 space-y-3">
-          <label className="block text-xs uppercase tracking-[0.15em] text-brand-brown/70">
-            Tu nombre
-            <input
-              value={staffName}
-              onChange={(e) => saveName(e.target.value.slice(0, 60))}
-              placeholder="Ej.: Sofía"
-              className="mt-1 w-full border border-brand-brown/20 px-3 py-2 text-base normal-case tracking-normal text-brand-dark"
-            />
-          </label>
+          {editingName || !staffName ? (
+            <form onSubmit={saveName} className="flex gap-2 items-end">
+              <label className="flex-1 block text-xs uppercase tracking-[0.15em] text-brand-brown/70">
+                Quién atiende
+                <input
+                  value={nameDraft}
+                  onChange={(e) => setNameDraft(e.target.value.slice(0, 60))}
+                  placeholder="Ej.: Sofía"
+                  autoFocus
+                  className="mt-1 w-full border border-brand-brown/20 px-3 py-2 text-base normal-case tracking-normal text-brand-dark"
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={busy === 'name' || !nameDraft.trim()}
+                className="bg-brand-brown text-brand-cream px-4 h-[42px] text-xs uppercase tracking-[0.15em] disabled:opacity-40"
+              >
+                Guardar
+              </button>
+            </form>
+          ) : (
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm text-brand-brown/70">
+                Atiende: <strong className="text-brand-dark text-base">{staffName}</strong>
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setNameDraft(staffName);
+                  setEditingName(true);
+                }}
+                className="text-xs uppercase tracking-[0.15em] text-brand-brown underline"
+              >
+                Cambiar
+              </button>
+            </div>
+          )}
           <dl className="text-sm space-y-1">
             <div className="flex justify-between">
               <dt className="text-brand-brown/70">Productos</dt>

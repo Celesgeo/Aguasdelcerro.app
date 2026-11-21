@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { stockViewer } from '@/lib/stock-auth';
+import { staffNameFromCookie, stockViewer } from '@/lib/stock-auth';
 import {
   StockError,
   currentBusinessDate,
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
   const productId = String(body?.productId ?? '');
   const units = Number(body?.units ?? 1);
-  const staffName = sanitizeText(body?.staffName, 60);
+  const staffName = (await staffNameFromCookie()) || sanitizeText(body?.staffName, 60);
 
   if (!UUID.test(productId)) {
     return NextResponse.json({ ok: false, error: 'Producto inválido' }, { status: 400 });
