@@ -116,6 +116,45 @@ CREATE TABLE IF NOT EXISTS member_usage (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS member_usage_member_idx ON member_usage (member_id, created_at DESC);
+
+-- Stock del mirador / kiosco. quantity NULL = producto sin control de stock (se registran ventas, no se descuenta).
+CREATE TABLE IF NOT EXISTS stock_products (
+  id UUID PRIMARY KEY,
+  name TEXT NOT NULL,
+  category TEXT NOT NULL,
+  unit_price INTEGER NOT NULL DEFAULT 0 CHECK (unit_price >= 0),
+  quantity INTEGER CHECK (quantity IS NULL OR quantity >= 0),
+  low_alert INTEGER NOT NULL DEFAULT 2,
+  active BOOLEAN NOT NULL DEFAULT true,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS stock_products_category_idx ON stock_products (active, category, sort_order);
+
+-- Movimientos: venta (sale), reposición (restock) o ajuste manual (adjust).
+CREATE TABLE IF NOT EXISTS stock_movements (
+  id UUID PRIMARY KEY,
+  product_id UUID NOT NULL REFERENCES stock_products(id) ON DELETE CASCADE,
+  product_name TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  units INTEGER NOT NULL,
+  unit_price INTEGER NOT NULL DEFAULT 0,
+  total INTEGER NOT NULL DEFAULT 0,
+  shift_id TEXT,
+  business_date TEXT NOT NULL,
+  staff_name TEXT,
+  note TEXT,
+  voided_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS stock_movements_day_idx ON stock_movements (business_date, shift_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS stock_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 `;
 
 async function ensureSchema(): Promise<void> {

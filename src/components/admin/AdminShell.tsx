@@ -38,6 +38,9 @@ export default function AdminShell({
             <Link href="/admin/turnos" className="text-xs tracking-[0.15em] uppercase text-brand-cream/70 hover:text-brand-gold font-body">
               Turnos
             </Link>
+            <Link href="/admin/stock" className="text-xs tracking-[0.15em] uppercase text-brand-cream/70 hover:text-brand-gold font-body">
+              Stock
+            </Link>
             <Link href="/admin/postulaciones" className="text-xs tracking-[0.15em] uppercase text-brand-cream/70 hover:text-brand-gold font-body">
               Postulaciones
             </Link>
