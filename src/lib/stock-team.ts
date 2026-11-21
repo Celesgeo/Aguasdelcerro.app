@@ -30,6 +30,34 @@ export async function findSeller(id: string): Promise<Seller | null> {
 
 export class SellerError extends Error {}
 
+/** Normaliza el nombre escrito: sin espacios de más. */
+export function cleanSellerName(value: string): string {
+  return value.replace(/\s+/g, ' ').trim().slice(0, 60);
+}
+
+/** Busca al vendedor por nombre (sin importar mayúsculas); si no existe, lo crea. */
+export async function findOrCreateSellerByName(rawName: string): Promise<Seller> {
+  const name = cleanSellerName(rawName);
+  if (!name) throw new SellerError('Escribí tu nombre');
+  const existing = await query<SellerRow>(
+    `SELECT id, name, active FROM stock_sellers WHERE lower(name) = lower($1)`,
+    [name],
+  );
+  if (existing[0]) {
+    if (!existing[0].active) {
+      await query(`UPDATE stock_sellers SET active = true WHERE id = $1`, [existing[0].id]);
+    }
+    return mapSeller({ ...existing[0], active: true });
+  }
+  const rows = await query<SellerRow>(
+    `INSERT INTO stock_sellers (id, name) VALUES ($1, $2)
+     ON CONFLICT ((lower(name))) DO UPDATE SET active = true
+     RETURNING id, name, active`,
+    [randomUUID(), name],
+  );
+  return mapSeller(rows[0]!);
+}
+
 export async function createSeller(name: string): Promise<Seller> {
   const existing = await query<SellerRow>(`SELECT id, name, active FROM stock_sellers WHERE lower(name) = lower($1)`, [name]);
   if (existing[0]) {
@@ -140,4 +168,22 @@ export async function setAttendance(
   } else {
     await query(`DELETE FROM stock_attendance WHERE seller_id = $1 AND work_date = $2`, [sellerId, date]);
   }
+}
+
+/** Marca asistencia de hoy si es día hábil (lunes a viernes). Se llama solo al ingresar o vender. */
+export async function autoMarkAttendance(sellerId: string): Promise<void> {
+  const today = currentBusinessDate();
+  if (!isWorkday(today)) return;
+  await setAttendance(sellerId, today, true, 'staff');
+}
+
+/** Días trabajados en la semana actual (lunes a viernes; el lunes vuelve a empezar). */
+export async function weekCount(sellerId: string): Promise<number> {
+  const week = workWeek(currentBusinessDate());
+  const rows = await query<{ n: number }>(
+    `SELECT COUNT(*)::int AS n FROM stock_attendance
+      WHERE seller_id = $1 AND work_date >= $2 AND work_date <= $3`,
+    [sellerId, week[0]!.date, week[4]!.date],
+  );
+  return Number(rows[0]?.n ?? 0);
 }

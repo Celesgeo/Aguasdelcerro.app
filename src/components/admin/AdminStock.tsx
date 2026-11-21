@@ -811,7 +811,7 @@ function TeamTab({ onNotice, onError }: TabProps) {
       <section className="bg-white border border-brand-brown/10 p-5 space-y-4">
         <h2 className="font-display text-xl text-brand-brown">Vendedores</h2>
         <p className="text-sm text-brand-brown/70">
-          Al entrar a /stock, cada empleado elige su nombre de esta lista. Así las ventas y la asistencia quedan a su nombre.
+          Se agregan solos cuando alguien entra a /stock con un nombre nuevo (sin importar mayúsculas). También podés cargarlos vos.
         </p>
         <form onSubmit={add} className="flex gap-2 max-w-md">
           <input className={input} value={newName} onChange={(e) => setNewName(e.target.value.slice(0, 60))} placeholder="Nombre y apellido" />
@@ -854,7 +854,7 @@ function TeamTab({ onNotice, onError }: TabProps) {
           </button>
         </div>
         <p className="text-xs text-brand-brown/60">
-          Cada vendedor tilda solo el día de hoy desde /stock. Desde acá podés corregir cualquier día tocando el casillero.
+          Se marca sola cuando el vendedor entra a /stock con su nombre (o vende) de lunes a viernes; sábados y domingos no suman. Al vendedor solo le aparece su número de días al lado del nombre. Desde acá podés corregir cualquier día tocando el casillero.
         </p>
         {rows.length === 0 ? (
           <p className="text-sm text-brand-brown/60">Agregá vendedores para ver la planilla.</p>

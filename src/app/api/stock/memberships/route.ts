@@ -8,7 +8,8 @@ import {
   isInPersonPaymentMethod,
   listPaidMemberships,
 } from '@/lib/reservations';
-import { staffNameFromCookie, stockViewer } from '@/lib/stock-auth';
+import { sellerIdFromCookie, staffNameFromCookie, stockViewer } from '@/lib/stock-auth';
+import { autoMarkAttendance } from '@/lib/stock-team';
 import { toShiftMembership } from '@/lib/stock-memberships';
 import { currentBusinessDate, currentShiftId } from '@/lib/stock-store';
 import { clientIp, rateLimit, sanitizeText } from '@/lib/security';
@@ -75,6 +76,8 @@ export async function POST(request: NextRequest) {
       paymentMethod,
       soldBy: staffName,
     });
+    const sellerId = await sellerIdFromCookie();
+    if (sellerId) await autoMarkAttendance(sellerId).catch(() => undefined);
     return NextResponse.json({ ok: true, membership: toShiftMembership(reservation) });
   } catch (error) {
     if (error instanceof ReservationError) {

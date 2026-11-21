@@ -12,7 +12,7 @@ import {
   stockViewer,
 } from '@/lib/stock-auth';
 import { currentBusinessDate, currentShiftId } from '@/lib/stock-store';
-import { findSeller, listSellers } from '@/lib/stock-team';
+import { SellerError, autoMarkAttendance, findOrCreateSellerByName, findSeller, listSellers, weekCount } from '@/lib/stock-team';
 import { clientIp, rateLimit, sanitizeText, uniformResponseDelay } from '@/lib/security';
 
 export const dynamic = 'force-dynamic';
@@ -27,12 +27,19 @@ export async function GET() {
       sellerIdFromCookie(),
     ]);
     const sellers = viewer ? (await listSellers()).map((s) => ({ id: s.id, name: s.name })) : [];
+    let daysThisWeek: number | null = null;
+    if (viewer && sellerId) {
+      // Si la sesión sigue abierta de un día a otro, el día nuevo también cuenta.
+      await autoMarkAttendance(sellerId).catch(() => undefined);
+      daysThisWeek = await weekCount(sellerId).catch(() => null);
+    }
     return NextResponse.json({
       ok: true,
       viewer,
       pinConfigured,
       staffName: viewer ? staffName : '',
       sellerId: viewer ? sellerId : null,
+      daysThisWeek,
       sellers,
       shiftId: currentShiftId(),
       businessDate: currentBusinessDate(),
@@ -71,37 +78,28 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/** Elegir quién atiende: { sellerId } de la lista, o { staffName } si todavía no hay lista. */
+/** Elegir quién atiende: { staffName } escrito (se busca o se crea) o { sellerId }. Marca la asistencia de hoy. */
 export async function PUT(request: NextRequest) {
   if (!(await stockViewer())) {
     return NextResponse.json({ ok: false, error: 'No autorizado' }, { status: 401 });
   }
   const body = await request.json().catch(() => ({}));
   try {
-    let staffName = '';
-    let sellerId: string | null = null;
-    const sellers = await listSellers();
-
-    if (body?.sellerId) {
-      const seller = await findSeller(String(body.sellerId));
-      if (!seller || !seller.active) {
-        return NextResponse.json({ ok: false, error: 'Elegí tu nombre de la lista' }, { status: 400 });
-      }
-      staffName = seller.name;
-      sellerId = seller.id;
-    } else if (sellers.length === 0) {
-      staffName = sanitizeText(body?.staffName, 60);
-    } else {
-      return NextResponse.json({ ok: false, error: 'Elegí tu nombre de la lista' }, { status: 400 });
+    let seller = body?.sellerId ? await findSeller(String(body.sellerId)) : null;
+    if (!seller) {
+      const typed = sanitizeText(body?.staffName, 60);
+      if (!typed) return NextResponse.json({ ok: false, error: 'Escribí tu nombre' }, { status: 400 });
+      seller = await findOrCreateSellerByName(typed);
     }
-    if (!staffName) return NextResponse.json({ ok: false, error: 'Escribí tu nombre' }, { status: 400 });
+    await autoMarkAttendance(seller.id);
+    const daysThisWeek = await weekCount(seller.id);
 
-    const res = NextResponse.json({ ok: true, staffName, sellerId });
-    res.cookies.set(STAFF_NAME_COOKIE, encodeURIComponent(staffName), staffCookieOptions());
-    if (sellerId) res.cookies.set(STAFF_SELLER_COOKIE, sellerId, staffCookieOptions());
-    else res.cookies.set(STAFF_SELLER_COOKIE, '', { ...staffCookieOptions(0), maxAge: 0 });
+    const res = NextResponse.json({ ok: true, staffName: seller.name, sellerId: seller.id, daysThisWeek });
+    res.cookies.set(STAFF_NAME_COOKIE, encodeURIComponent(seller.name), staffCookieOptions());
+    res.cookies.set(STAFF_SELLER_COOKIE, seller.id, staffCookieOptions());
     return res;
-  } catch {
+  } catch (error) {
+    if (error instanceof SellerError) return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
     return NextResponse.json({ ok: false, error: 'No se pudo guardar' }, { status: 500 });
   }
 }

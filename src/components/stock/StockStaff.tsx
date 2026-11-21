@@ -19,13 +19,6 @@ const PAYMENT_LABEL: Record<string, string> = {
   mercadopago: 'Mercado Pago (online)',
 };
 
-type AttendanceInfo = {
-  enabled: boolean;
-  todayIsWorkday?: boolean;
-  total?: number;
-  days: { date: string; label: string; present: boolean; isToday: boolean }[];
-};
-
 type MembershipInfo = {
   unitPrice: number;
   maxPerSale: number;
@@ -38,6 +31,7 @@ type Session = {
   pinConfigured: boolean;
   staffName: string;
   sellerId: string | null;
+  daysThisWeek: number | null;
   sellers: { id: string; name: string }[];
   shiftId: VisitorShiftId;
   businessDate: string;
@@ -79,7 +73,6 @@ export default function StockStaff() {
   const [mQty, setMQty] = useState(1);
   const [mPay, setMPay] = useState<string>('efectivo');
   const [mName, setMName] = useState('');
-  const [attendance, setAttendance] = useState<AttendanceInfo | null>(null);
 
   const loadSession = useCallback(async () => {
     try {
@@ -97,16 +90,14 @@ export default function StockStaff() {
 
   const loadData = useCallback(async () => {
     try {
-      const [p, s, m, a] = await Promise.all([
+      const [p, s, m] = await Promise.all([
         fetch('/api/stock/products', { cache: 'no-store' }).then((r) => r.json()),
         fetch('/api/stock/sales', { cache: 'no-store' }).then((r) => r.json()),
         fetch('/api/stock/memberships', { cache: 'no-store' }).then((r) => r.json()),
-        fetch('/api/stock/attendance', { cache: 'no-store' }).then((r) => r.json()),
       ]);
       if (p.ok) setProducts(p.products);
       if (s.ok) setSales(s.sales);
       if (m.ok) setMInfo(m);
-      if (a.ok) setAttendance(a);
       if (!p.ok && p.error === 'No autorizado') void loadSession();
     } catch {
       // se reintenta en el próximo ciclo
@@ -143,21 +134,20 @@ export default function StockStaff() {
     e.preventDefault();
     const value = nameDraft.trim();
     if (!value) return;
-    const fromList = (session?.sellers.length ?? 0) > 0;
     setBusy('name');
     setError(null);
     try {
       const res = await fetch('/api/stock/session', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(fromList ? { sellerId: value } : { staffName: value }),
+        body: JSON.stringify({ staffName: value }),
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || 'No se pudo guardar el nombre');
       setStaffName(data.staffName);
       rememberLocally(data.staffName);
       setEditingName(false);
-      setNotice(`Listo, ahora atiende ${data.staffName}.`);
+      setNotice(`Hola ${data.staffName}. Días trabajados esta semana: ${data.daysThisWeek}.`);
       await loadSession();
       await loadData();
     } catch (cause) {
@@ -245,26 +235,6 @@ export default function StockStaff() {
       await loadData();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'No se pudo registrar la devolución');
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const toggleAttendance = async (present: boolean) => {
-    setBusy('attendance');
-    setError(null);
-    try {
-      const res = await fetch('/api/stock/attendance', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ present }),
-      });
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.error || 'No se pudo guardar la asistencia');
-      setNotice(present ? 'Asistencia de hoy marcada.' : 'Asistencia de hoy desmarcada.');
-      await loadData();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'No se pudo guardar la asistencia');
     } finally {
       setBusy(null);
     }
@@ -426,32 +396,24 @@ export default function StockStaff() {
       {header}
       <main className="mx-auto max-w-3xl px-4 py-5 space-y-5 font-body">
         <section className="bg-white border border-brand-brown/10 p-4 space-y-3">
-          {editingName || !staffName || (session.sellers.length > 0 && !session.sellerId) ? (
+          {editingName || !staffName || !session.sellerId ? (
             <form onSubmit={saveName} className="flex gap-2 items-end">
               <label className="flex-1 block text-xs uppercase tracking-[0.15em] text-brand-brown/70">
                 ¿Quién atiende?
-                {session.sellers.length > 0 ? (
-                  <select
-                    value={nameDraft}
-                    onChange={(e) => setNameDraft(e.target.value)}
-                    className="mt-1 w-full border border-brand-brown/20 bg-white px-3 py-2 text-base normal-case tracking-normal text-brand-dark"
-                  >
-                    <option value="">Elegí tu nombre…</option>
-                    {session.sellers.map((seller) => (
-                      <option key={seller.id} value={seller.id}>
-                        {seller.name}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    value={nameDraft}
-                    onChange={(e) => setNameDraft(e.target.value.slice(0, 60))}
-                    placeholder="Ej.: Sofía"
-                    autoFocus
-                    className="mt-1 w-full border border-brand-brown/20 px-3 py-2 text-base normal-case tracking-normal text-brand-dark"
-                  />
-                )}
+                <input
+                  value={nameDraft}
+                  onChange={(e) => setNameDraft(e.target.value.slice(0, 60))}
+                  placeholder="Ej.: Sofía"
+                  autoFocus
+                  list="adc-sellers"
+                  autoComplete="off"
+                  className="mt-1 w-full border border-brand-brown/20 px-3 py-2 text-base normal-case tracking-normal text-brand-dark"
+                />
+                <datalist id="adc-sellers">
+                  {session.sellers.map((seller) => (
+                    <option key={seller.id} value={seller.name} />
+                  ))}
+                </datalist>
               </label>
               <button
                 type="submit"
@@ -464,12 +426,16 @@ export default function StockStaff() {
           ) : (
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm text-brand-brown/70">
-                Atiende: <strong className="text-brand-dark text-base">{staffName}</strong>
+                Atiende:{' '}
+                <strong className="text-brand-dark text-base">
+                  {staffName}
+                  {session.daysThisWeek !== null && session.daysThisWeek !== undefined ? ` (${session.daysThisWeek})` : ''}
+                </strong>
               </p>
               <button
                 type="button"
                 onClick={() => {
-                  setNameDraft(session.sellers.length > 0 ? '' : staffName);
+                  setNameDraft('');
                   setEditingName(true);
                 }}
                 className="text-xs uppercase tracking-[0.15em] text-brand-brown underline"
@@ -499,44 +465,6 @@ export default function StockStaff() {
             </div>
           </dl>
         </section>
-
-        {attendance?.enabled && attendance.days.length > 0 && (
-          <section className="bg-white border border-brand-brown/10 p-4 space-y-3">
-            <div className="flex items-baseline justify-between gap-3">
-              <h2 className="text-[11px] uppercase tracking-[0.25em] text-brand-brown/60">Mi asistencia · {staffName}</h2>
-              <span className="text-xs text-brand-brown/70">
-                {attendance.total} de 5 días esta semana
-              </span>
-            </div>
-            <div className="grid grid-cols-5 gap-2">
-              {attendance.days.map((d) => (
-                <button
-                  key={d.date}
-                  type="button"
-                  disabled={!d.isToday || busy === 'attendance'}
-                  onClick={() => toggleAttendance(!d.present)}
-                  className={`flex flex-col items-center gap-1 border p-2 text-[11px] ${
-                    d.isToday ? 'border-brand-brown' : 'border-brand-brown/15'
-                  } ${d.isToday ? '' : 'opacity-60'}`}
-                >
-                  <span className="leading-tight text-center">{d.label}</span>
-                  <span
-                    className={`w-8 h-8 flex items-center justify-center border text-base ${
-                      d.present ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white border-brand-brown/30 text-transparent'
-                    }`}
-                  >
-                    ✓
-                  </span>
-                </button>
-              ))}
-            </div>
-            <p className="text-xs text-brand-brown/60">
-              {attendance.todayIsWorkday
-                ? 'Solo se puede tildar el día de hoy. Si te olvidaste otro día, avisale al administrador.'
-                : 'La asistencia se marca de lunes a viernes.'}
-            </p>
-          </section>
-        )}
 
         <section className="bg-white border border-brand-brown/10 p-4 space-y-4">
           <div className="flex items-baseline justify-between gap-3">

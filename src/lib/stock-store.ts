@@ -188,6 +188,7 @@ async function ensureSeed(): Promise<void> {
       }
     })
       .then(() => migrateBatas())
+      .then(() => migrateLeonardoWeek())
       .catch((error: unknown) => {
         globalForStock.__adcStockSeeded = undefined;
         throw error;
@@ -226,6 +227,33 @@ async function migrateBatas(): Promise<void> {
        VALUES ($1, $2, $3, 'adjust', $4, $5, 'Carga de batas en alquiler: 24 unidades')`,
       [randomUUID(), bata.id, bata.name, 24 - (bata.quantity ?? 0), currentBusinessDate()],
     );
+  });
+}
+
+/** Una sola vez: Leonardo Orellano con asistencia lunes 16 a viernes 20/11/2026 (5 días). */
+async function migrateLeonardoWeek(): Promise<void> {
+  await transaction(async (client) => {
+    const marked = await client.query(
+      `INSERT INTO stock_settings (key, value) VALUES ('leonardo_week_2026_11_16', '1') ON CONFLICT (key) DO NOTHING RETURNING key`,
+    );
+    if (marked.rowCount === 0) return;
+    const found = await client.query<{ id: string }>(
+      `SELECT id FROM stock_sellers WHERE lower(name) = lower('Leonardo Orellano')`,
+    );
+    let sellerId = found.rows[0]?.id;
+    if (!sellerId) {
+      sellerId = randomUUID();
+      await client.query(`INSERT INTO stock_sellers (id, name) VALUES ($1, 'Leonardo Orellano')`, [sellerId]);
+    } else {
+      await client.query(`UPDATE stock_sellers SET active = true WHERE id = $1`, [sellerId]);
+    }
+    for (const day of ['2026-11-16', '2026-11-17', '2026-11-18', '2026-11-19', '2026-11-20']) {
+      await client.query(
+        `INSERT INTO stock_attendance (id, seller_id, work_date, marked_by)
+         VALUES ($1, $2, $3, 'admin') ON CONFLICT (seller_id, work_date) DO NOTHING`,
+        [randomUUID(), sellerId, day],
+      );
+    }
   });
 }
 

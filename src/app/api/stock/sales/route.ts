@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { staffNameFromCookie, stockViewer } from '@/lib/stock-auth';
+import { sellerIdFromCookie, staffNameFromCookie, stockViewer } from '@/lib/stock-auth';
+import { autoMarkAttendance } from '@/lib/stock-team';
 import {
   StockError,
   currentBusinessDate,
@@ -58,6 +59,8 @@ export async function POST(request: NextRequest) {
 
   try {
     const result = await registerSale({ productId, units, staffName });
+    const sellerId = await sellerIdFromCookie();
+    if (sellerId) await autoMarkAttendance(sellerId).catch(() => undefined);
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {
     if (error instanceof StockError) {
